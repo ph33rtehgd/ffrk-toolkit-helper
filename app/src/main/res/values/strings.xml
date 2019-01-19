@@ -1,0 +1,62 @@
+<resources>
+    <string name="app_name">FFRK Toolkit Helper</string>
+
+    <!-- Strings related to Settings -->
+    <string name="pref_id_enable_proxy">enable_switch</string>
+    <string name="pref_id_submit_inventory">submitInventoryToFfrkToolkit</string>
+    <string name="pref_id_google_login">googleLogin</string>
+
+    <!-- Example General settings -->
+    <string name="pref_header_proxy_and_data">Proxy &amp; Data Controls</string>
+
+    <string name="pref_title_enable_proxy">Enable Proxy</string>
+    <string name="pref_description_enable_proxy">Enables the HTTP proxy to capture FFRK
+        data.
+    </string>
+
+    <string name="pref_title_send_inventory_data">Send Inventory</string>
+    <string name="pref_description_send_inventory_data">Tap to send your captured inventory data
+        to FFRK Toolkit (must be logged in).
+    </string>
+
+    <string name="pref_title_google_login">Login</string>
+    <string name="pref_title_google_logout">Logout</string>
+    <string name="pref_description_google_login">Log into FFRK Toolkit using your Google Account
+    </string>
+    <string name="pref_description_google_logout">Logged in as:
+    </string>
+
+    <!-- App strings -->
+    <string name="file_inventory_global_json">inventory_global.json</string>
+    <string name="file_inventory_jp_json">inventory_jp.json</string>
+    <string name="file_equipment_global_json">equipment_global.json</string>
+    <string name="file_equipment_jp_json">equipment_jp.json</string>
+    <string name="file_vault_global_json">vault_global.json</string>
+    <string name="file_vault_jp_json">vault_jp.json</string>
+
+    <string name="log_tag">FFRKToolkitHelper</string>
+
+    <string name="exception_no_inventory_data_toast">No inventory data captured, visit the Party screen before trying again.</string>
+    <string name="exception_invalid_inventory_data_toast">Invalid inventory data, visit the Party screen before trying again.</string>
+    <string name="exception_saving_inventory">Error while saving inventory.</string>
+    <string name="exception_loading_inventory">Error while loading existing inventory.</string>
+
+    <string name="toast_not_signed_in">Please login before trying to submit data.</string>
+    <string name="toast_inventory_saved_successfully">Inventory saved successfully!</string>
+
+    <string name="notification_proxy_enabled">Proxy enabled</string>
+    <string name="notification_stop_proxy">Stop proxy</string>
+
+    <string name="oauth_token">193355482636-v8vqij11qe5qvpjc1su5u6jq62l4p0i4.apps.googleusercontent.com</string>
+    <string name="user_functions_url">https://www.ffrktoolkit.com/user_functions.php</string>
+
+    <string name="intent_stop_proxy">com.ffrktoolkit.intent.action.stop_proxy</string>
+    <string name="intent_start_proxy">com.ffrktoolkit.intent.action.start_proxy</string>
+
+    <string name="button_cancel">Cancel</string>
+    <string name="upload_progress_dialog_title">Uploading Inventory</string>
+    <string name="upload_progress_dialog_loading_message">Loading existing inventory</string>
+    <string name="upload_progress_dialog_loaded_message">Inventory loaded, updating with latest data.</string>
+    <string name="upload_progress_dialog_saving_message">Sending inventory to FFRK Toolkit</string>
+</resources>
+

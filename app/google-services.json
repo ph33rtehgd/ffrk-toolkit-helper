@@ -1,0 +1,63 @@
+{
+  "project_info": {
+    "project_number": "193355482636",
+    "firebase_url": "https://ffrk-toolkit.firebaseio.com",
+    "project_id": "ffrk-toolkit",
+    "storage_bucket": "ffrk-toolkit.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:193355482636:android:a842534d63e498c4",
+        "android_client_info": {
+          "package_name": "com.ffrktoolkit.ffrktoolkithelper"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "193355482636-gms0i74qkn3vm5i4eqsf3uc10vrgdl8m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ffrktoolkit.ffrktoolkithelper",
+            "certificate_hash": "a1c63eb8517c3493d5d2016aa1ba2dc82be72b63"
+          }
+        },
+        {
+          "client_id": "193355482636-lke7r99khooalk55aciuagv38lpglfsc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ffrktoolkit.ffrktoolkithelper",
+            "certificate_hash": "866ddb9986862934e545fdc108772d507af5aa1b"
+          }
+        },
+        {
+          "client_id": "193355482636-v8vqij11qe5qvpjc1su5u6jq62l4p0i4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAt00xJ51jH7-Copo3Wlvab0WaVWjWrzI0"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "193355482636-v8vqij11qe5qvpjc1su5u6jq62l4p0i4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
