@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item type="id" name="overlay_main" />
+    <item type="id" name="overlay_resizable" />
+    <item type="id" name="overlay_scroll" />
+    <!--<item type="id" name="overlay_spinner_container" />-->
+    <!--<item type="id" name="overlay_spinner" />-->
+    <item type="id" name="overlay_button_close" />
+    <item type="id" name="overlay_text" />
+</resources>

@@ -8,6 +8,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.ListPreference;
@@ -15,19 +16,18 @@ import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.preference.TwoStatePreference;
+import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.view.MenuItem;
-import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import com.android.volley.Request;
-import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
-import com.ffrktoolkit.ffrktoolkithelper.DropOverlayService;
+import com.ffrktoolkit.ffrktoolkithelper.OverlayService;
+import com.ffrktoolkit.ffrktoolkithelper.ProxyService;
 import com.ffrktoolkit.ffrktoolkithelper.R;
 import com.ffrktoolkit.ffrktoolkithelper.SettingsActivity;
 import com.ffrktoolkit.ffrktoolkithelper.parser.InventoryParser;
@@ -46,12 +46,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import io.netty.util.CharsetUtil;
 
 /**
  * This fragment shows general preferences only. It is used when the
@@ -61,7 +58,8 @@ import io.netty.util.CharsetUtil;
 public class ProxyAndDataFragment extends PreferenceFragment {
 
     private String LOG_TAG = "FFRKToolkitHelper";
-    private int RC_SIGN_IN = 5000;
+    private final static int SIGN_IN_REQUEST_CODE = 5000;
+    private final static int OVERLAY_REQUEST_CODE = 5001;
     private InventoryParser parser = new InventoryParser();
     private BroadcastReceiver broadcastReceiver;
     private AtomicInteger updatesDone = new AtomicInteger(0);
@@ -77,7 +75,29 @@ public class ProxyAndDataFragment extends PreferenceFragment {
         // to their values. When their values change, their summaries are
         // updated to reflect the new value, per the Android Design
         // guidelines.
-        bindPreferenceSummaryToValue(findPreference("enable_switch"));
+        bindPreferenceSummaryToValue(findPreference(getString(R.string.pref_id_enable_proxy)));
+
+        Preference overlayPref = findPreference(getString(R.string.pref_id_enable_overlay));
+        overlayPref.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+            @Override
+            public boolean onPreferenceChange(Preference preference, Object newValue) {
+                TwoStatePreference togglePref = (TwoStatePreference) preference;
+                Boolean toggle = (Boolean) newValue;
+
+                Intent intent = new Intent(preference.getContext(), ProxyService.class);
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(preference.getContext());
+                if (toggle != null && toggle) {
+                    checkDrawOverlayPermission();
+                    prefs.edit().putBoolean("enableOverlay", true).commit();
+                }
+                else {
+                    closeFloatingWindow();
+                    prefs.edit().putBoolean("enableOverlay", false).commit();
+                }
+
+                return true;
+            }
+        });
 
         Preference submitInventoryButton = findPreference(getString(R.string.pref_id_submit_inventory));
         submitInventoryButton.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
@@ -112,7 +132,7 @@ public class ProxyAndDataFragment extends PreferenceFragment {
                 else {
                     Log.d(LOG_TAG, "Not signed in, starting sign in process.");
                     Intent signInIntent = googleSignInClient.getSignInIntent();
-                    startActivityForResult(signInIntent, RC_SIGN_IN);
+                    startActivityForResult(signInIntent, SIGN_IN_REQUEST_CODE);
                 }
 
                 return true;
@@ -128,11 +148,24 @@ public class ProxyAndDataFragment extends PreferenceFragment {
         super.onActivityResult(requestCode, resultCode, data);
 
         // Result returned from launching the Intent from GoogleSignInClient.getSignInIntent(...);
-        if (requestCode == RC_SIGN_IN) {
-            // The Task returned from this call is always completed, no need to attach
-            // a listener.
-            Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
-            handleSignInResult(task);
+        switch (requestCode) {
+            case OVERLAY_REQUEST_CODE: {
+                if (Build.VERSION.SDK_INT >= 23) {
+                    if (Settings.canDrawOverlays(getActivity())) {
+                        openFloatingWindow();
+                    }
+                } else {
+                    openFloatingWindow();
+                }
+                break;
+            }
+            case SIGN_IN_REQUEST_CODE: {
+                // The Task returned from this call is always completed, no need to attach
+                // a listener.
+                Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
+                handleSignInResult(task);
+                break;
+            }
         }
     }
 
@@ -173,23 +206,6 @@ public class ProxyAndDataFragment extends PreferenceFragment {
         }
     }
 
-    /*@Override
-    public void onReceive(Context context, Intent intent) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Action: " + intent.getAction() + "\n");
-        sb.append("URI: " + intent.toUri(Intent.URI_INTENT_SCHEME).toString() + "\n");
-        String log = sb.toString();
-        Log.d(LOG_TAG, log);
-
-        TwoStatePreference sendInventoryPref = (TwoStatePreference) findPreference(getString(R.string.pref_id_enable_proxy));
-        if (getString(R.string.intent_stop_proxy).equals(intent.getAction())) {
-            sendInventoryPref.setChecked(false);
-        }
-        else if (getString(R.string.intent_start_proxy).equals(intent.getAction())) {
-            sendInventoryPref.setChecked(true);
-        }
-    }*/
-
     private void handleSignInResult(Task<GoogleSignInAccount> completedTask) {
         try {
             GoogleSignInAccount account = completedTask.getResult(ApiException.class);
@@ -228,19 +244,6 @@ public class ProxyAndDataFragment extends PreferenceFragment {
                 handleSignInResult(task);
             }
         });
-
-        //GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(getActivity().getApplicationContext());
-
-        /*Preference loginPref = findPreference(getString(R.string.pref_id_google_login));
-        if (account != null) {
-            loginPref.setTitle(R.string.pref_title_google_logout);
-            loginPref.setSummary(getString(R.string.pref_description_google_logout) + " " + account.getEmail());
-        }
-        else {
-            loginPref.setTitle(R.string.pref_title_google_login);
-            loginPref.setSummary(R.string.pref_description_google_login);
-        }*/
-
     }
 
     private void updateLoginUi() {
@@ -350,7 +353,7 @@ public class ProxyAndDataFragment extends PreferenceFragment {
 
             if ("enable_switch".equals(preference.getKey())) {
                 Boolean toggle = (Boolean) value;
-                Intent intent = new Intent(preference.getContext(), DropOverlayService.class);
+                Intent intent = new Intent(preference.getContext(), ProxyService.class);
                 SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(preference.getContext());
                 if (toggle != null && toggle) {
                     intent.setAction(preference.getContext().getString(R.string.intent_start_proxy));
@@ -367,6 +370,30 @@ public class ProxyAndDataFragment extends PreferenceFragment {
             return true;
         }
     };
+
+    public void checkDrawOverlayPermission() {
+        if (Build.VERSION.SDK_INT >= 23) {
+            if (!Settings.canDrawOverlays(getActivity())) {
+                Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + this.getActivity().getPackageName()));
+                startActivityForResult(intent, OVERLAY_REQUEST_CODE);
+            } else {
+                openFloatingWindow();
+            }
+        } else {
+            openFloatingWindow();
+        }
+    }
+
+    private void openFloatingWindow() {
+        Intent intent = new Intent(getActivity(), OverlayService.class);
+        getActivity().stopService(intent);
+        getActivity().startService(intent);
+    }
+
+    private void closeFloatingWindow() {
+        Intent intent = new Intent(getActivity(), OverlayService.class);
+        getActivity().stopService(intent);
+    }
 
     private void processInventoryData(final String region) {
         String fileName = "global".equals(region) ? getString(R.string.file_inventory_global_json) : getString(R.string.file_inventory_jp_json);

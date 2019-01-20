@@ -8,18 +8,18 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
-import android.support.v4.app.NotificationCompat;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
-import android.widget.Toast;
 
-import com.ffrktoolkit.ffrktoolkithelper.fragments.ProxyAndDataFragment;
 import com.ffrktoolkit.ffrktoolkithelper.parser.InventoryParser;
+import com.ffrktoolkit.ffrktoolkithelper.util.DropUtils;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -34,6 +34,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpResponse;
@@ -42,13 +46,13 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.util.CharsetUtil;
 
-public class DropOverlayService extends Service implements View.OnTouchListener, View.OnClickListener {
+public class ProxyService extends Service implements View.OnTouchListener, View.OnClickListener {
     private HttpProxyServer server;
     private String LOG_TAG = "FFRKToolkitHelper";
     private InventoryParser inventoryParser;
     private final static int PROXY_NOTIFICATION_ID = 176123744;
 
-    public DropOverlayService() {
+    public ProxyService() {
         Log.d(LOG_TAG, "Service created.");
         inventoryParser = new InventoryParser();
     }
@@ -71,7 +75,7 @@ public class DropOverlayService extends Service implements View.OnTouchListener,
                 this.server.abort();
 
                 NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-                notificationManager.cancel(DropOverlayService.PROXY_NOTIFICATION_ID);
+                notificationManager.cancel(ProxyService.PROXY_NOTIFICATION_ID);
 
                 SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this.getApplicationContext());
                 prefs.edit().putBoolean("enableProxy", false).commit();
@@ -178,6 +182,9 @@ public class DropOverlayService extends Service implements View.OnTouchListener,
             }
             else if (requestUri.contains("/dff/warehouse/get_equipment_list")) {
                 parseInventoryData("vault", requestUri, response);
+            }
+            else if (requestUri.contains("get_battle_init_data")) {
+                parseBattleData(response);
             }
         }
         catch (Exception e) {
@@ -298,8 +305,111 @@ public class DropOverlayService extends Service implements View.OnTouchListener,
         Log.d(LOG_TAG, "Equipment inventory saved to file.");
     }
 
+    private void parseBattleData(String response) {
+        List<JSONObject> drops = new ArrayList<>();
+        try {
+            JSONObject responseData = new JSONObject(response);
+            JSONObject battleData = responseData.getJSONObject("battle");
+            JSONArray rounds = battleData.getJSONArray("rounds");
+
+            for (int i = 0, roundsLen = rounds.length(); i < roundsLen; i++) {
+                JSONObject round = rounds.getJSONObject(i);
+                JSONArray enemies = round.getJSONArray("enemy");
+
+                for (int j = 0, enemyLen = enemies.length(); j < enemyLen; j++) {
+                    JSONObject enemy = enemies.getJSONObject(j);
+                    JSONArray children = enemy.getJSONArray("children");
+
+                    for (int k = 0, childrenLen = children.length(); k < childrenLen; k++) {
+                        JSONObject child = children.getJSONObject(k);
+                        JSONArray dropItemList = child.getJSONArray("drop_item_list");
+
+                        for (int l = 0, dropsLen = dropItemList.length(); l < dropsLen; l++) {
+                            JSONObject drop = dropItemList.getJSONObject(l);
+                            drops.add(drop);
+                        }
+                    }
+                }
+            }
+
+            Log.d(LOG_TAG, "Drop list size " + drops.size());
+            ArrayList<String> dropTexts = getDropsString(drops);
+            Intent dropsIntent = new Intent(this.getApplicationContext(), OverlayService.class);
+            dropsIntent.putStringArrayListExtra("drops", dropTexts);
+            getApplicationContext().startService(dropsIntent);
+        }
+        catch (Exception e) {
+            Log.w(LOG_TAG, "Exception while parsing battle data.", e);
+        }
+    }
+
+    private ArrayList<String> getDropsString(List<JSONObject> drops) throws JSONException {
+        Log.d(LOG_TAG, "Starting drop parsing");
+        Map<String, Integer> dropMap = new HashMap<>();
+        for (JSONObject drop : drops) {
+            String itemId = drop.optString("item_id");
+            String rarity = drop.optString("rarity");
+            int type = drop.optInt("type");
+            Integer quantity = null;
+            String mapKey = null;
+            if (itemId != null && !"".equals(itemId.trim())) {
+                Log.d(LOG_TAG, "Item ID: " + itemId);
+                String dropName = DropUtils.getDropName(itemId);
+                mapKey = rarity + "\u2605 " + dropName;
+                quantity = dropMap.get(mapKey);
+            }
+            else {
+                String stringType = String.valueOf(type);
+
+                if (type == 11) {
+                    stringType = "Gil";
+                }
+
+                mapKey = stringType;
+                quantity = dropMap.get(mapKey);
+            }
+
+            if (quantity == null) {
+                quantity = 0;
+            }
+
+            String quantityInDrop = drop.optString("num");
+            if (quantityInDrop != null && !"".equals(quantityInDrop.trim())) {
+                quantity += Integer.parseInt(quantityInDrop);
+            }
+
+            String amountInDrop = drop.optString("amount"); // used for Gil
+            if (amountInDrop != null && !"".equals(amountInDrop.trim())) {
+                quantity += Integer.parseInt(amountInDrop);
+            }
+
+            Log.d(LOG_TAG, "Parsed " + mapKey + " quan " + quantity);
+            dropMap.put(mapKey, quantity);
+        }
+
+        ArrayList<String> dropsText = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : dropMap.entrySet()) {
+            String dropName = entry.getKey();
+            Integer quantity = entry.getValue();
+
+            String dropText = null;
+            if (dropName.equalsIgnoreCase("gil")) {
+                dropText = quantity + " " + dropName;
+            }
+            else {
+                dropText = dropName + " (" + quantity + ")";
+            }
+
+            dropsText.add(dropText);
+            Log.d(LOG_TAG, "Parsed drop: " + dropText);
+        }
+
+
+        return dropsText;
+    }
+
     private void createProxyNotification() {
-        Intent intent = new Intent(getApplicationContext(), DropOverlayService.class);
+        Intent intent = new Intent(getApplicationContext(), ProxyService.class);
         intent.setAction(getString(R.string.intent_stop_proxy));
 
         int random = (int)System.nanoTime();
@@ -336,7 +446,7 @@ public class DropOverlayService extends Service implements View.OnTouchListener,
             notificationManager.createNotificationChannel(channel);
         }
 
-        notificationManager.notify(DropOverlayService.PROXY_NOTIFICATION_ID, notificationBuilder.build());
+        notificationManager.notify(ProxyService.PROXY_NOTIFICATION_ID, notificationBuilder.build());
     }
 
     private boolean isUrlForFfrk(String url) {
@@ -346,4 +456,5 @@ public class DropOverlayService extends Service implements View.OnTouchListener,
     private boolean isGlobalUrl(String url) {
         return url != null && url.contains("ffrk.denagames.com");
     }
+
 }

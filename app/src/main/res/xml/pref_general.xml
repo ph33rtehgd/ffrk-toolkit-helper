@@ -6,6 +6,12 @@
         android:summary="@string/pref_description_enable_proxy"
         android:title="@string/pref_title_enable_proxy" />
 
+    <SwitchPreference
+        android:defaultValue="false"
+        android:key="@string/pref_id_enable_overlay"
+        android:summary="@string/pref_description_enable_overlay"
+        android:title="@string/pref_title_enable_overlay" />
+
     <Preference android:title="@string/pref_title_send_inventory_data"
         android:key="@string/pref_id_submit_inventory"
         android:summary="@string/pref_description_send_inventory_data" />
