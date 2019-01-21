@@ -131,6 +131,14 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         Log.d(LOG_TAG, String.valueOf(prefs.getBoolean("enableProxy", false)));
         if (!prefs.getBoolean("enableProxy", false)) {
+            Log.d(LOG_TAG, "Proxy preference set to false, not starting.");
+            return;
+        }
+
+        if (this.server != null) {
+            Log.d(LOG_TAG, "Proxy already started, this is likely a stop request from the notification.");
+            server.abort();
+            server = null;
             return;
         }
 
