@@ -8,18 +8,28 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.preference.ListPreference;
-import android.preference.Preference;
-import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
-import android.preference.TwoStatePreference;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.v4.app.Fragment;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
-import android.view.MenuItem;
+import android.view.KeyEvent;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
+import android.widget.Button;
+import android.widget.CompoundButton;
+import android.widget.EditText;
+import android.widget.Switch;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.android.volley.Request;
@@ -29,7 +39,6 @@ import com.android.volley.toolbox.StringRequest;
 import com.ffrktoolkit.ffrktoolkithelper.OverlayService;
 import com.ffrktoolkit.ffrktoolkithelper.ProxyService;
 import com.ffrktoolkit.ffrktoolkithelper.R;
-import com.ffrktoolkit.ffrktoolkithelper.SettingsActivity;
 import com.ffrktoolkit.ffrktoolkithelper.parser.InventoryParser;
 import com.ffrktoolkit.ffrktoolkithelper.util.HttpRequestSingleton;
 import com.ffrktoolkit.ffrktoolkithelper.util.JsonUtils;
@@ -55,7 +64,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * activity is showing a two-pane settings UI.
  */
 @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-public class ProxyAndDataFragment extends PreferenceFragment {
+public class ProxyAndDataFragment extends Fragment {
 
     private String LOG_TAG = "FFRKToolkitHelper";
     private final static int SIGN_IN_REQUEST_CODE = 5000;
@@ -64,29 +73,54 @@ public class ProxyAndDataFragment extends PreferenceFragment {
     private BroadcastReceiver broadcastReceiver;
     private AtomicInteger updatesDone = new AtomicInteger(0);
 
+    public static ProxyAndDataFragment newInstance()
+    {
+        ProxyAndDataFragment proxyAndDataFragment = new ProxyAndDataFragment();
+        proxyAndDataFragment.setArguments(new Bundle());
+        return proxyAndDataFragment;
+    }
+
     @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    public void onCreate(Bundle bundle) {
+        super.onCreate(bundle);
         registerReceiver();
-        addPreferencesFromResource(R.xml.pref_general);
-        setHasOptionsMenu(true);
+    }
 
-        // Bind the summaries of EditText/List/Dialog/Ringtone preferences
-        // to their values. When their values change, their summaries are
-        // updated to reflect the new value, per the Android Design
-        // guidelines.
-        bindPreferenceSummaryToValue(findPreference(getString(R.string.pref_id_enable_proxy)));
+    @Override
+    public View onCreateView(LayoutInflater layoutInflater, ViewGroup viewGroup, Bundle bundle) {
+        View layout = layoutInflater.inflate(R.layout.proxy_settings, viewGroup, false);
+        return layout;
+    }
 
-        Preference overlayPref = findPreference(getString(R.string.pref_id_enable_overlay));
-        overlayPref.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        final Switch enableProxySwitch = (Switch) getView().findViewById(R.id.enable_proxy_switch);
+        enableProxySwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
-            public boolean onPreferenceChange(Preference preference, Object newValue) {
-                TwoStatePreference togglePref = (TwoStatePreference) preference;
-                Boolean toggle = (Boolean) newValue;
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                Intent intent = new Intent(getContext(), ProxyService.class);
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
+                if (isChecked) {
+                    intent.setAction(getContext().getString(R.string.intent_start_proxy));
+                    prefs.edit().putBoolean("enableProxy", true).commit();
+                }
+                else {
+                    intent.setAction(getContext().getString(R.string.intent_stop_proxy));
+                    prefs.edit().putBoolean("enableProxy", false).commit();
+                }
 
-                Intent intent = new Intent(preference.getContext(), ProxyService.class);
-                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(preference.getContext());
-                if (toggle != null && toggle) {
+                getContext().startService(intent);
+            }
+        });
+
+        final Switch enableOverlaySwitch = (Switch) getView().findViewById(R.id.enable_overlay_switch);
+        enableOverlaySwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
+                if (isChecked) {
                     checkDrawOverlayPermission();
                     prefs.edit().putBoolean("enableOverlay", true).commit();
                 }
@@ -94,48 +128,88 @@ public class ProxyAndDataFragment extends PreferenceFragment {
                     closeFloatingWindow();
                     prefs.edit().putBoolean("enableOverlay", false).commit();
                 }
-
-                return true;
             }
         });
 
-        Preference submitInventoryButton = findPreference(getString(R.string.pref_id_submit_inventory));
-        submitInventoryButton.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+        final Button sendInventoryBtn = (Button) getView().findViewById(R.id.submit_inventory_btn);
+        sendInventoryBtn.setOnClickListener(new View.OnClickListener() {
             @Override
-            public boolean onPreferenceClick(Preference preference) {
-                Preference sendInventoryButton = findPreference(getString(R.string.pref_id_submit_inventory));
-                sendInventoryButton.setEnabled(false);
+            public void onClick(View v) {
+                sendInventoryBtn.setEnabled(false);
 
                 processInventoryData("global");
-                return true;
             }
         });
 
-        Preference googleLoginButton = findPreference(getString(R.string.pref_id_google_login));
-        googleLoginButton.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+
+        final Button googleLoginBtn = (Button) getView().findViewById(R.id.google_login_btn);
+        googleLoginBtn.setOnClickListener(new View.OnClickListener() {
             @Override
-            public boolean onPreferenceClick(Preference preference) {
-                // Build a GoogleSignInClient with the options specified by gso.
+            public void onClick(View v) {
                 GoogleSignInClient googleSignInClient = GoogleSignIn.getClient(getActivity(), getGoogleSignInOptions());
                 GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(getActivity().getApplicationContext());
 
                 if (account != null) {
                     Log.d(LOG_TAG, "Already signed in.");
                     googleSignInClient.signOut().addOnCompleteListener(getActivity(), new OnCompleteListener<Void>() {
-                            @Override
-                            public void onComplete(@NonNull Task<Void> task) {
-                                Log.d(LOG_TAG, "Signed out.");
-                                updateLoginUi();
-                            }
-                        });
+                        @Override
+                        public void onComplete(@NonNull Task<Void> task) {
+                            Log.d(LOG_TAG, "Signed out.");
+                            updateLoginUi();
+                        }
+                    });
                 }
                 else {
                     Log.d(LOG_TAG, "Not signed in, starting sign in process.");
                     Intent signInIntent = googleSignInClient.getSignInIntent();
                     startActivityForResult(signInIntent, SIGN_IN_REQUEST_CODE);
                 }
+            }
+        });
 
-                return true;
+        final EditText proxyPortText = (EditText) getView().findViewById(R.id.proxy_port);
+        proxyPortText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+                if (actionId == EditorInfo.IME_ACTION_SEARCH ||
+                        actionId == EditorInfo.IME_ACTION_DONE ||
+                        event != null &&
+                                event.getAction() == KeyEvent.ACTION_DOWN &&
+                                event.getKeyCode() == KeyEvent.KEYCODE_ENTER) {
+                    if (event == null || !event.isShiftPressed()) {
+                        // the user is done typing.
+                        String newPort = ((EditText) v).getText().toString();
+                        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
+                        int newPortInt = 0;
+                        int originalPort = prefs.getInt("proxyPort", 0);
+                        try {
+                            newPortInt = Integer.valueOf(newPort);
+                            if (newPortInt < 1024 || newPortInt > 49151) {
+                                Toast toast = Toast.makeText(getActivity().getApplicationContext(), getString(R.string.default_port_range_message), Toast.LENGTH_SHORT);
+                                toast.show();
+                                proxyPortText.setText(getString(R.string.default_proxy_port));
+                                newPortInt = Integer.valueOf(getString(R.string.default_proxy_port));
+                            }
+                        }
+                        catch (Exception e) {
+                            newPortInt = Integer.valueOf(getString(R.string.default_proxy_port));
+                            proxyPortText.setText(getString(R.string.default_proxy_port));
+                        }
+
+                        if (originalPort != newPortInt) {
+                            prefs.edit().putInt("proxyPort", newPortInt).commit();
+                            final Switch enableProxySwitch = (Switch) getView().findViewById(R.id.enable_proxy_switch);
+                            if (enableProxySwitch.isChecked()) {
+                                Intent intent = new Intent(getContext(), ProxyService.class);
+                                intent.setAction(getContext().getString(R.string.intent_change_proxy_port));
+                                getContext().startService(intent);
+                            }
+                        }
+
+                        return true; // consume.
+                    }
+                }
+                return false; // pass on to other listeners.
             }
         });
 
@@ -178,21 +252,25 @@ public class ProxyAndDataFragment extends PreferenceFragment {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
         boolean isProxyEnabled = prefs.getBoolean("enableProxy", false);
 
-        Preference proxySwitch = findPreference(getString(R.string.pref_id_enable_proxy));
-        ((TwoStatePreference) proxySwitch).setChecked(isProxyEnabled);
+        final Switch enableProxySwitch = (Switch) getView().findViewById(R.id.enable_proxy_switch);
+        enableProxySwitch.setChecked(isProxyEnabled);
+
+        boolean isOverlayEnabled = prefs.getBoolean("enableOverlay", false);
+        final Switch enableOverlaySwitch = (Switch) getView().findViewById(R.id.enable_overlay_switch);
+        enableOverlaySwitch.setChecked(isOverlayEnabled);
+
+        if (isOverlayEnabled) {
+            checkDrawOverlayPermission();
+        }
+
+        final EditText proxyPortText = (EditText) getView().findViewById(R.id.proxy_port);
+        int proxyPort = prefs.getInt("proxyPort", Integer.valueOf(getString(R.string.default_proxy_port)));
+        proxyPortText.setText(String.valueOf(proxyPort));
     }
 
     @Override
     public void onStart() {
         super.onStart();
-        checkIfAlreadySignedIn();
-        checkIfInventoryChanged();
-
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
-        boolean isProxyEnabled = prefs.getBoolean("enableProxy", false);
-
-        Preference proxySwitch = findPreference(getString(R.string.pref_id_enable_proxy));
-        ((TwoStatePreference) proxySwitch).setChecked(isProxyEnabled);
     }
 
     @Override
@@ -211,9 +289,14 @@ public class ProxyAndDataFragment extends PreferenceFragment {
             GoogleSignInAccount account = completedTask.getResult(ApiException.class);
 
             // Signed in successfully, show authenticated UI.
-            Preference loginPref = findPreference(getString(R.string.pref_id_google_login));
-            loginPref.setTitle(R.string.pref_title_google_logout);
-            loginPref.setSummary(getString(R.string.pref_description_google_logout) + " " + account.getEmail());
+            final Button googleLoginBtn = (Button) getView().findViewById(R.id.google_login_btn);
+            googleLoginBtn.setText(R.string.pref_title_google_logout);
+
+            final TextView loginStatusText = (TextView) getView().findViewById(R.id.login_status);
+            loginStatusText.setText(getString(R.string.pref_description_google_logout) + account.getEmail());
+
+            final Button submitInventoryBtn = (Button) this.getActivity().findViewById(R.id.submit_inventory_btn);
+            submitInventoryBtn.setEnabled(true);
         } catch (ApiException e) {
             // The ApiException status code indicates the detailed failure reason.
             // Please refer to the GoogleSignInStatusCodes class reference for more information.
@@ -223,17 +306,25 @@ public class ProxyAndDataFragment extends PreferenceFragment {
     }
 
     private void checkIfInventoryChanged() {
-        Preference sendInventoryPref = findPreference(getString(R.string.pref_id_submit_inventory));
+        final Button sendInventoryBtn = (Button) this.getView().findViewById(R.id.submit_inventory_btn);
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        Drawable statusIcon = null;
+        Log.d(LOG_TAG, "Has inventory changed: " + prefs.getBoolean("hasInventoryChanged", false));
         if (!prefs.contains("hasInventoryChanged")) {
-            sendInventoryPref.setIcon(R.drawable.ic_clear_black_24dp);
+            statusIcon = getResources().getDrawable(R.drawable.ic_clear_black_24dp);
         }
         else if (prefs.getBoolean("hasInventoryChanged", false)) {
-            sendInventoryPref.setIcon(R.drawable.ic_update_black_24dp);
+            statusIcon = getResources().getDrawable(R.drawable.ic_update_black_24dp);
         }
         else {
-            sendInventoryPref.setIcon(R.drawable.ic_thumb_up_black_24dp);
+            statusIcon = getResources().getDrawable(R.drawable.ic_thumb_up_black_24dp);
         }
+
+        int h = statusIcon.getIntrinsicHeight();
+        int w = statusIcon.getIntrinsicWidth();
+        statusIcon.setBounds( 0, 0, w, h);
+
+        sendInventoryBtn.setCompoundDrawables(statusIcon, null, null, null);
     }
 
     private void checkIfAlreadySignedIn() {
@@ -249,14 +340,18 @@ public class ProxyAndDataFragment extends PreferenceFragment {
     private void updateLoginUi() {
         GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(getActivity().getApplicationContext());
 
-        Preference loginPref = findPreference(getString(R.string.pref_id_google_login));
+        final Button googleLoginBtn = (Button) this.getActivity().findViewById(R.id.google_login_btn);
+        final Button submitInventoryBtn = (Button) this.getActivity().findViewById(R.id.submit_inventory_btn);
+        final TextView loginStatusText = (TextView) getView().findViewById(R.id.login_status);
         if (account != null) {
-            loginPref.setTitle(R.string.pref_title_google_logout);
-            loginPref.setSummary(getString(R.string.pref_description_google_logout) + " " + account.getEmail());
+            googleLoginBtn.setText(R.string.pref_title_google_logout);
+            loginStatusText.setText(getString(R.string.pref_description_google_logout) + account.getEmail());
+            submitInventoryBtn.setEnabled(true);
         }
         else {
-            loginPref.setTitle(R.string.pref_title_google_login);
-            loginPref.setSummary(R.string.pref_description_google_login);
+            googleLoginBtn.setText(R.string.pref_title_google_login);
+            loginStatusText.setText(getString(R.string.logged_out));
+            submitInventoryBtn.setEnabled(false);
         }
     }
 
@@ -272,14 +367,13 @@ public class ProxyAndDataFragment extends PreferenceFragment {
             @Override
             public void onReceive(Context context, Intent intent) {
                 String action = intent.getStringExtra("action");
+                final Switch enableProxySwitch = (Switch) getActivity().findViewById(R.id.enable_proxy_switch);
                 try {
                     if (getString(R.string.intent_stop_proxy).equals(action)) {
-                        TwoStatePreference proxySwitch = (TwoStatePreference) findPreference(getString(R.string.pref_id_enable_proxy));
-                        proxySwitch.setChecked(false);
+                        enableProxySwitch.setChecked(false);
                     }
                     else if (getString(R.string.intent_start_proxy).equals(action)) {
-                        TwoStatePreference proxySwitch = (TwoStatePreference) findPreference(getString(R.string.pref_id_enable_proxy));
-                        proxySwitch.setChecked(true);
+                        enableProxySwitch.setChecked(true);
                     }
                 }
                 catch (Exception e) {
@@ -289,87 +383,8 @@ public class ProxyAndDataFragment extends PreferenceFragment {
         };
 
         IntentFilter intentFilter = new IntentFilter("com.ffrktoolkit.ffrktoolkithelper");
-        //intentFilter.addAction(getString(R.string.intent_stop_proxy));
-        //intentFilter.addAction(getString(R.string.intent_start_proxy));
         this.getActivity().getApplicationContext().registerReceiver(broadcastReceiver, intentFilter);
     }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-        if (id == android.R.id.home) {
-            startActivity(new Intent(getActivity(), SettingsActivity.class));
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
-    }
-
-    /**
-     * Binds a preference's summary to its value. More specifically, when the
-     * preference's value is changed, its summary (line of text below the
-     * preference title) is updated to reflect the value. The summary is also
-     * immediately updated upon calling this method. The exact display format is
-     * dependent on the type of preference.
-     *
-     * @see #sBindPreferenceSummaryToValueListener
-     */
-    private static void bindPreferenceSummaryToValue(Preference preference) {
-        // Set the listener to watch for value changes.
-        preference.setOnPreferenceChangeListener(sBindPreferenceSummaryToValueListener);
-
-        // Trigger the listener immediately with the preference's
-        // current value.
-        Boolean preferenceValue = PreferenceManager
-                .getDefaultSharedPreferences(preference.getContext())
-                .getBoolean("enableProxy", false);
-        sBindPreferenceSummaryToValueListener.onPreferenceChange(preference, preferenceValue);
-    }
-    /**
-     * A preference value change listener that updates the preference's summary
-     * to reflect its new value.
-     */
-    private static Preference.OnPreferenceChangeListener sBindPreferenceSummaryToValueListener = new Preference.OnPreferenceChangeListener() {
-        @Override
-        public boolean onPreferenceChange(Preference preference, Object value) {
-            String stringValue = value.toString();
-
-            if (preference instanceof ListPreference) {
-                // For list preferences, look up the correct display value in
-                // the preference's 'entries' list.
-                ListPreference listPreference = (ListPreference) preference;
-                int index = listPreference.findIndexOfValue(stringValue);
-
-                // Set the summary to reflect the new value.
-                preference.setSummary(
-                        index >= 0
-                                ? listPreference.getEntries()[index]
-                                : null);
-
-            } else {
-                // For all other preferences, set the summary to the value's
-                // simple string representation.
-                //preference.setSummary(stringValue);
-            }
-
-            if ("enable_switch".equals(preference.getKey())) {
-                Boolean toggle = (Boolean) value;
-                Intent intent = new Intent(preference.getContext(), ProxyService.class);
-                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(preference.getContext());
-                if (toggle != null && toggle) {
-                    intent.setAction(preference.getContext().getString(R.string.intent_start_proxy));
-                    prefs.edit().putBoolean("enableProxy", true).commit();
-                }
-                else {
-                    intent.setAction(preference.getContext().getString(R.string.intent_stop_proxy));
-                    prefs.edit().putBoolean("enableProxy", false).commit();
-                }
-
-                preference.getContext().startService(intent);
-            }
-
-            return true;
-        }
-    };
 
     public void checkDrawOverlayPermission() {
         if (Build.VERSION.SDK_INT >= 23) {
@@ -673,8 +688,8 @@ public class ProxyAndDataFragment extends PreferenceFragment {
             Toast toast = Toast.makeText(getActivity().getApplicationContext(), getString(R.string.toast_inventory_saved_successfully), Toast.LENGTH_SHORT);
             toast.show();
 
-            Preference sendInventoryButton = findPreference(getString(R.string.pref_id_submit_inventory));
-            sendInventoryButton.setEnabled(true);
+            final Button sendInventoryBtn = (Button) getActivity().findViewById(R.id.submit_inventory_btn);
+            sendInventoryBtn.setEnabled(true);
         }
     }
 }

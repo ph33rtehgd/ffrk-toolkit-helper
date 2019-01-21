@@ -8,12 +8,10 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
-import android.provider.Settings;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
@@ -35,7 +33,9 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -67,6 +67,8 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         if (getString(R.string.intent_start_proxy).equals(action)) {
             if (server == null) {
                 startProxy();
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this.getApplicationContext());
+                prefs.edit().putBoolean("enableProxy", true).commit();
             }
         }
         else if (getString(R.string.intent_stop_proxy).equals(action)) {
@@ -88,6 +90,13 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
 
                 this.server = null;
                 this.stopSelf();
+            }
+        }
+        else if (getString(R.string.intent_change_proxy_port).equals(action)) {
+            if (this.server != null) {
+                Log.d(LOG_TAG, "Restarting proxy with new port.");
+                this.server.abort();
+                startProxy();
             }
         }
 
@@ -185,6 +194,8 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             }
             else if (requestUri.contains("get_battle_init_data")) {
                 parseBattleData(response);
+            }
+            else if (requestUri.contains("win_battle")) {
             }
         }
         catch (Exception e) {
@@ -332,6 +343,25 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 }
             }
 
+
+            Collections.sort(drops, new Comparator<JSONObject>() {
+                @Override
+                public int compare(JSONObject d1, JSONObject d2) {
+                    String r1 = d1.optString("rarity");
+                    String r2 = d2.optString("rarity");
+
+                    try {
+                        int rarity1 = Integer.parseInt(r1);
+                        int rarity2 = Integer.parseInt(r2);
+
+                        return (rarity1 - rarity2) * -1;
+                    }
+                    catch (Exception e) {
+                        return 1;
+                    }
+                }
+            });
+
             Log.d(LOG_TAG, "Drop list size " + drops.size());
             ArrayList<String> dropTexts = getDropsString(drops);
             Intent dropsIntent = new Intent(this.getApplicationContext(), OverlayService.class);
@@ -345,7 +375,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
 
     private ArrayList<String> getDropsString(List<JSONObject> drops) throws JSONException {
         Log.d(LOG_TAG, "Starting drop parsing");
-        Map<String, Integer> dropMap = new HashMap<>();
+        Map<String, Integer> dropMap = new LinkedHashMap<>();
         for (JSONObject drop : drops) {
             String itemId = drop.optString("item_id");
             String rarity = drop.optString("rarity");
@@ -421,7 +451,17 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         );
 
         random = (int)System.nanoTime();
-        Intent settingsIntent = new Intent(getApplicationContext(), SettingsActivity.class);
+        Intent overlayIntent = new Intent(getApplicationContext(), OverlayService.class);
+        overlayIntent.setAction("showOverlay");
+        PendingIntent startOverlayIntent = PendingIntent.getService(
+                getApplicationContext(),
+                random,
+                overlayIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT
+        );
+
+        random = (int)System.nanoTime();
+        Intent settingsIntent = new Intent(getApplicationContext(), FFRKToolkitHelperActivity.class);
         PendingIntent settingsPendingIntent = PendingIntent.getActivity(
                 getApplicationContext(),
                 random,
@@ -435,6 +475,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 .setContentText(getString(R.string.notification_proxy_enabled))
                 .setContentIntent(settingsPendingIntent)
                 .addAction(R.drawable.ic_stop_black_24dp, getString(R.string.notification_stop_proxy), stopProxyIntent)
+                .addAction(R.drawable.ic_show_overlay_black_24dp, getString(R.string.pref_title_enable_overlay), startOverlayIntent)
                 .setOngoing(true);
 
         NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
