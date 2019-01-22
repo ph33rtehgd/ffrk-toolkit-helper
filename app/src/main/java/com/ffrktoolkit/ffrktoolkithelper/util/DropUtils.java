@@ -6,8 +6,11 @@ import java.util.Map;
 public class DropUtils {
 
     private final static Map<String, String> dropIdMap;
+    private final static Map<String, Integer> rarityOverrideMap;
+
     static {
         dropIdMap = new HashMap<>();
+        rarityOverrideMap = new HashMap<>();
 
         // Eggs
         dropIdMap.put("70000001", "Minor Growth Egg");
@@ -193,6 +196,32 @@ public class DropUtils {
         dropIdMap.put("161000080", "Hades");
         dropIdMap.put("161000095", "Ark");
         dropIdMap.put("161000096", "Deathgaze");
+
+        rarityOverrideMap.put("161000057", 4);
+        rarityOverrideMap.put("161000058", 4);
+        rarityOverrideMap.put("161000059", 4);
+        rarityOverrideMap.put("161000060", 4);
+        rarityOverrideMap.put("161000061", 4);
+        rarityOverrideMap.put("161000062", 4);
+        rarityOverrideMap.put("161000069", 4);
+        rarityOverrideMap.put("161000070", 4);
+        rarityOverrideMap.put("161000071", 4);
+        rarityOverrideMap.put("161000066", 4);
+        rarityOverrideMap.put("161000067", 4);
+        rarityOverrideMap.put("161000068", 4);
+        rarityOverrideMap.put("161000063", 4);
+        rarityOverrideMap.put("161000064", 4);
+        rarityOverrideMap.put("161000065", 4);
+        rarityOverrideMap.put("161000072", 4);
+        rarityOverrideMap.put("161000073", 4);
+        rarityOverrideMap.put("161000074", 4);
+        rarityOverrideMap.put("161000075", 4);
+        rarityOverrideMap.put("161000076", 4);
+        rarityOverrideMap.put("161000077", 4);
+        rarityOverrideMap.put("161000078", 4);
+        rarityOverrideMap.put("161000079", 4);
+        rarityOverrideMap.put("161000080", 4);
+
     }
 
     public static String getDropName(String dropId) {
@@ -204,4 +233,12 @@ public class DropUtils {
         return dropName;
     }
 
+    public static Integer overrideRarity(String dropId, Integer startingRarity) {
+        Integer rarity = rarityOverrideMap.get(dropId);
+        if (rarity == null) {
+            rarity = startingRarity;
+        }
+
+        return rarity;
+    }
 }

@@ -11,6 +11,7 @@
                     android:singleLine="true"
                     android:layout_width="match_parent" android:layout_height="wrap_content" />
             </LinearLayout>
+            <Button android:id="@id/reset_overlay_btn" android:text="@string/reset_overlay_btn_text" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/activity_vertical_margin" />
             <Button android:id="@id/submit_inventory_btn" android:text="@string/pref_title_send_inventory_data" android:enabled="false" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/activity_vertical_margin" />
 
             <LinearLayout android:orientation="vertical" android:layout_marginTop="@dimen/activity_vertical_margin" android:layout_width="fill_parent" android:layout_height="wrap_content">

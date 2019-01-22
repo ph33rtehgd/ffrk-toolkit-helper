@@ -131,6 +131,22 @@ public class ProxyAndDataFragment extends Fragment {
             }
         });
 
+        final Button resetOverlayBtn = (Button) getView().findViewById(R.id.reset_overlay_btn);
+        resetOverlayBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
+                prefs.edit().putInt("overlayX", 0)
+                        .putInt("overlayY", 150)
+                        .commit();
+
+                if (enableOverlaySwitch.isChecked()) {
+                    closeFloatingWindow();
+                    checkDrawOverlayPermission();
+                }
+            }
+        });
+
         final Button sendInventoryBtn = (Button) getView().findViewById(R.id.submit_inventory_btn);
         sendInventoryBtn.setOnClickListener(new View.OnClickListener() {
             @Override

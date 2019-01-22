@@ -21,6 +21,8 @@
     <string name="default_proxy_port">8081</string>
     <string name="default_port_range_message">Choose a port between 1024 and 49151</string>
 
+    <string name="reset_overlay_btn_text">Reset Overlay Position</string>
+
     <string name="pref_title_send_inventory_data">Send Inventory</string>
     <string name="pref_description_send_inventory_data">Tap to send your captured inventory data
         to FFRK Toolkit (must be logged in).
@@ -68,8 +70,7 @@
     <string name="upload_progress_dialog_saving_message">Sending inventory to FFRK Toolkit</string>
 
     <string name="overlay_close">Close</string>
-    <string name="title_activity_ffrktoolkit_helper">FFRKToolkitHelperActivity</string>
-    <string name="action_settings">Settings</string>
-    <string name="section_format">Hello World from section: %1$d</string>
+    <string name="overlay_waiting_for_data">No battle data available</string>
+    <string name="overlay_no_drops">No drops in this battle</string>
 </resources>
 

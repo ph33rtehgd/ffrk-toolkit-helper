@@ -11,6 +11,7 @@
 
     <item type="id" name="enable_proxy_switch" />
     <item type="id" name="enable_overlay_switch" />
+    <item type="id" name="reset_overlay_btn" />
     <item type="id" name="submit_inventory_btn" />
     <item type="id" name="google_login_btn" />
     <item type="id" name="proxy_port" />

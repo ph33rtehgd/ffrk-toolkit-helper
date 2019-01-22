@@ -345,6 +345,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
 
                         for (int l = 0, dropsLen = dropItemList.length(); l < dropsLen; l++) {
                             JSONObject drop = dropItemList.getJSONObject(l);
+                            drop.put("rarity", DropUtils.overrideRarity(drop.optString("item_id"), drop.optInt("rarity")));
                             drops.add(drop);
                         }
                     }

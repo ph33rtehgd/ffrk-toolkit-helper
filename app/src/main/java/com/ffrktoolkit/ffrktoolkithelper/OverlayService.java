@@ -49,12 +49,12 @@ public class OverlayService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
 
         if (intent != null) {
             String action = intent.getAction();
             Log.d(LOG_TAG, "Overlay intent actiom: " + action);
             if ("showOverlay".equalsIgnoreCase(action)) {
-                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
                 prefs.edit().putBoolean("enableOverlay", true).commit();
             }
         }
@@ -81,6 +81,10 @@ public class OverlayService extends Service {
                             initialTouchY = event.getRawY();
                             break;
                         case MotionEvent.ACTION_UP:
+                            prefs.edit()
+                                    .putInt("overlayX", mWindowsParams.x)
+                                    .putInt("overlayY", mWindowsParams.y)
+                                    .commit();
                             break;
                         case MotionEvent.ACTION_MOVE:
                             mWindowsParams.x = initialX + (int) (event.getRawX() - initialTouchX);
@@ -105,7 +109,6 @@ public class OverlayService extends Service {
 
         final float scale = getApplicationContext().getResources().getDisplayMetrics().density;
         int pixels = (int) (19 * scale + 0.5f);
-        int containerSize = pixels * 5;
         if (drops != null) {
             String dropList = "";
             for (String drop : drops) {
@@ -115,24 +118,19 @@ public class OverlayService extends Service {
                 dropList += drop;
             }
 
-            containerSize = Math.max(pixels * drops.size(), pixels * 5);
+            if ("".equals(dropList)) {
+                dropList += getString(R.string.overlay_no_drops);
+            }
+
+            int containerSize = Math.max(pixels * drops.size(), pixels);
             dropContainer.setLayoutParams(new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT, containerSize));
             dropView.setLayoutParams(new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT, containerSize));
-            //dropView.setHeight(containerSize);
-            //dropView.setHeight(Math.min(containerSize, pixels * 5));
-            //dropView.requestLayout();
-
             LayoutWrapContentUpdater.wrapContentAgain(rootContainer);
-
-            //rootContainer.invalidate();
-            //rootContainer.requestLayout();
-
             dropView.setText(dropList);
         }
         else {
-            dropView.setText("");
-            dropContainer.setLayoutParams(new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT, containerSize));
-            dropView.setHeight(pixels * 5);
+            dropView.setText(getString(R.string.overlay_waiting_for_data));
+            dropContainer.setLayoutParams(new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT, pixels));
             LayoutWrapContentUpdater.wrapContentAgain(rootContainer);
         }
 
@@ -163,15 +161,16 @@ public class OverlayService extends Service {
                 ,
 
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH // Not displaying keyboard on bg activity's EditText
-                | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 PixelFormat.TRANSLUCENT);
 
 
         mWindowsParams.gravity = Gravity.TOP | Gravity.LEFT;
-        //params.x = 0;
-        mWindowsParams.y = 150;
-        mWindowManager.addView(mView, mWindowsParams);
 
+        final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        mWindowsParams.x = prefs.getInt("overlayX", 0);
+        mWindowsParams.y = prefs.getInt("overlayY", 150);
+        mWindowManager.addView(mView, mWindowsParams);
         mView.setOnTouchListener(touchListener);
 
         final View dropListView = mView.findViewById(R.id.overlay_resizable);
