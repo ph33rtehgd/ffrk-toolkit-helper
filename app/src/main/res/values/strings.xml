@@ -44,6 +44,8 @@
     <string name="file_equipment_jp_json">equipment_jp.json</string>
     <string name="file_vault_global_json">vault_global.json</string>
     <string name="file_vault_jp_json">vault_jp.json</string>
+    <string name="file_materials_global_json">materials_global.json</string>
+    <string name="file_materials_jp_json">materials_jp.json</string>
     <string name="external_data_map_json">ffrktoolkithelper_data_map.json</string>
 
     <string name="log_tag">FFRKToolkitHelper</string>

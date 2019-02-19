@@ -2,6 +2,7 @@ package com.ffrktoolkit.ffrktoolkithelper.parser;
 
 import android.util.Log;
 
+import com.ffrktoolkit.ffrktoolkithelper.util.DropUtils;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 
 import org.json.JSONArray;
@@ -105,6 +106,47 @@ public class InventoryParser {
         return existingInventory;
     }
 
+    public JSONObject parseOrbInventoryToJson(JSONObject inventoryJson) {
+        JSONObject result = new JSONObject();
+        JSONArray orbArray = inventoryJson.optJSONArray("materials");
+        if (orbArray != null) {
+            try {
+                for (int i = 0, len = orbArray.length(); i <len; i++) {
+                    JSONObject orb = orbArray.getJSONObject(i);
+                    String dropName = DropUtils.getDropName(String.valueOf(orb.getInt("id")));
+
+                    if (dropName != null && dropName.length() != 0 && (dropName.contains("Orb") || dropName.contains("Crystal"))) {
+                        dropName = dropName.replace("Crystal", "");
+                        dropName = dropName.replace("Orb", "");
+                        dropName = dropName.replace(" ", "");
+
+                        if (orb.has("rarity") && orb.getInt("rarity") == 3) {
+                            dropName = "normal" + dropName;
+                        }
+                        else if (orb.has("rarity") && orb.getInt("rarity") == 6) {
+                            dropName = "crystal" + dropName;
+                        }
+                        else {
+                            char c[] = dropName.toCharArray();
+                            c[0] = Character.toLowerCase(c[0]);
+                            dropName = dropName.substring(0, 1).toLowerCase() + dropName.substring(1);
+                        }
+
+                        dropName += "Inv";
+
+                        result.put(dropName, orb.getInt("num"));
+                    }
+                }
+            }
+            catch(JSONException e) {
+                Log.d(LOG_TAG, "Exception while reading materials inventory", e);
+            }
+        }
+
+        Log.d(LOG_TAG, "Orb results: " + result.toString());
+        return result;
+    }
+
     public boolean hasInventoryChanged(JSONObject importingInventory, JSONObject existingInventory, String region) {
         try {
             JSONArray soulbreaks = importingInventory.optJSONArray("soul_strikes");
@@ -167,6 +209,64 @@ public class InventoryParser {
         }
         catch (JSONException e) {
             Log.w(LOG_TAG,"Exception while checking inventory for changes.", e);
+        }
+
+        return false;
+    }
+
+    public boolean hasMaterialsChanged(JSONObject importingInventory, JSONObject existingInventory, String region) {
+        try {
+            JSONArray materials = importingInventory.optJSONArray("materials");
+            JSONArray existingMaterials = existingInventory.optJSONArray("materials");
+
+            if (materials != null && existingMaterials != null) {
+                for (int i = 0; i < materials.length(); i++) {
+                    JSONObject material = materials.getJSONObject(i);
+                    Object materialId = material.opt("id");
+                    if (materialId != null) {
+                        boolean alreadyExists = false;
+                        for (int j = 0; j < existingMaterials.length(); j++) {
+                            JSONObject existingMaterial = existingMaterials.getJSONObject(j);
+                            Object existingMaterialId = existingMaterial.opt("id");
+                            if (existingMaterialId != null && existingMaterialId.equals(materialId) && material.getInt("num") == existingMaterial.getInt("num")) {
+                                alreadyExists = true;
+                                break;
+                            }
+                        }
+
+                        if (!alreadyExists) {
+                            return true;
+                        }
+                    }
+                }
+
+                for (int i = 0; i < existingMaterials.length(); i++) {
+                    JSONObject existingMaterial = existingMaterials.getJSONObject(i);
+                    Object existingMaterialId = existingMaterial.opt("id");
+                    if (existingMaterialId != null) {
+                        boolean alreadyExists = false;
+                        for (int j = 0; j < materials.length(); j++) {
+                            JSONObject material = materials.getJSONObject(j);
+                            Object materialId = material.opt("id");
+                            if (existingMaterialId.equals(materialId)) {
+                                alreadyExists = true;
+                                break;
+                            }
+                        }
+
+                        if (!alreadyExists) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            else if ((materials != null && existingMaterials == null)
+                    || materials == null && existingMaterials != null) {
+                return true;
+            }
+        }
+        catch (JSONException e) {
+            Log.w(LOG_TAG,"Exception while checking material inventory for changes.", e);
         }
 
         return false;

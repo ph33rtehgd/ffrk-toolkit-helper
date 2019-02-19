@@ -485,8 +485,11 @@ public class ProxyAndDataFragment extends Fragment {
         String vaultFileName = "global".equals(region) ? getString(R.string.file_vault_global_json) : getString(R.string.file_vault_jp_json);
         File vaultFile = new File(getActivity().getApplicationContext().getFilesDir(), vaultFileName);
 
+        String materialFileName = "global".equals(region) ? getString(R.string.file_materials_global_json) : getString(R.string.file_materials_jp_json);
+        File materialFile = new File(getActivity().getApplicationContext().getFilesDir(), materialFileName);
+
         if ((!inventoryFile.exists() || inventoryFile.length() <= 0) && (!relicFile.exists() || relicFile.length() <= 0)
-                && (!vaultFile.exists() || vaultFile.length() <= 0)) {
+                && (!vaultFile.exists() || vaultFile.length() <= 0) && (!materialFile.exists() || materialFile.length() <= 0)) {
             Toast toast = Toast.makeText(getActivity().getApplicationContext(), getString(R.string.exception_no_inventory_data_toast), Toast.LENGTH_SHORT);
             toast.show();
             return;
@@ -546,9 +549,10 @@ public class ProxyAndDataFragment extends Fragment {
                 final String relicJson = relicJsonString;
 
                 try {
-                    JSONArray inventoryJson = new JSONArray(relicJson);
-                    for (int i = 0, len = inventoryJson.length(); i < len; i++) {
-                        relics.put(inventoryJson.get(i));
+                    JSONObject inventoryJson = new JSONObject(relicJson);
+                    JSONArray equipments = inventoryJson.optJSONArray("equipments");
+                    for (int i = 0, len = equipments.length(); i < len; i++) {
+                        relics.put(equipments.get(i));
                     }
                 }
                 catch (Exception e) {
@@ -566,10 +570,12 @@ public class ProxyAndDataFragment extends Fragment {
                 final String relicJson = relicJsonString;
 
                 try {
-                    JSONArray inventoryJson = new JSONArray(relicJson);
-                    for (int i = 0, len = inventoryJson.length(); i < len; i++) {
-                        inventoryJson.getJSONObject(i).put("isVaulted", true);
-                        relics.put(inventoryJson.get(i));
+                    JSONObject inventoryJson = new JSONObject(relicJson);
+                    JSONArray equipments = inventoryJson.optJSONArray("equipments");
+
+                    for (int i = 0, len = equipments.length(); i < len; i++) {
+                        equipments.getJSONObject(i).put("isVaulted", true);
+                        relics.put(equipments.get(i));
                     }
                 }
                 catch (Exception e) {
@@ -582,6 +588,25 @@ public class ProxyAndDataFragment extends Fragment {
             }
 
             callSaveRelicInventory(account, relicInventory, region, progress);
+        }
+
+        if (inventoryFile.exists()) {
+            if ("global".equals(region)) {
+                try {
+                    String materialJsonString = JsonUtils.getStringFromFile(materialFile, this.getActivity());
+                    JSONObject transformedJson = parser.parseOrbInventoryToJson(new JSONObject(materialJsonString));
+                    callSaveMaterialInventory(account, transformedJson.toString(), region, progress);
+                }
+                catch (Exception e) {
+                    Log.d(LOG_TAG, "Exception while parsing material inventory to send.", e);
+                }
+            }
+            else {
+                hideProgressWhenComplete(progress);
+            }
+        }
+        else {
+            hideProgressWhenComplete(progress);
         }
     }
 
@@ -705,7 +730,8 @@ public class ProxyAndDataFragment extends Fragment {
                         @Override
                         public void onResponse(String response) {
                             Log.d(LOG_TAG, "Response: " + response.toString());
-                            progress.setProgress(progress.getProgress() + 50);
+                            int progressToMove = "global".equals(region) ? 25 : 50;
+                            progress.setProgress(progress.getProgress() + progressToMove);
                             hideProgressWhenComplete(progress);
                         }
                     }, new Response.ErrorListener() {
@@ -747,10 +773,64 @@ public class ProxyAndDataFragment extends Fragment {
         }
     }
 
+    private void callSaveMaterialInventory(final GoogleSignInAccount account, final String materialInventory, final String region, final ProgressDialog progress) {
+        String url = getString(R.string.user_functions_url);
+
+        Log.d(LOG_TAG, "Inside material save call.");
+        try {
+            progress.setMessage(getString(R.string.upload_progress_dialog_saving_message));
+            StringRequest saveInventoryRequest = new StringRequest
+                    (Request.Method.POST, url, new Response.Listener<String>() {
+
+                        @Override
+                        public void onResponse(String response) {
+                            Log.d(LOG_TAG, "Response: " + response.toString());
+                            progress.setProgress(progress.getProgress() + 50);
+                            hideProgressWhenComplete(progress);
+                        }
+                    }, new Response.ErrorListener() {
+
+                        @Override
+                        public void onErrorResponse(VolleyError error) {
+                            hideProgressWhenComplete(progress);
+                            Log.e(LOG_TAG, "Error in response: " + error.toString());
+                            Toast toast = Toast.makeText(getActivity().getApplicationContext(), getString(R.string.exception_saving_inventory), Toast.LENGTH_SHORT);
+                            toast.show();
+                        }
+                    }) {
+                @Override
+                protected Map<String, String> getParams() {
+                    Map<String, String> params = new HashMap<>();
+                    params.put("function", "saveOrbInventory");
+                    params.put("network", "Android");
+                    params.put("uid", account.getEmail());
+                    params.put("token", account.getIdToken());
+                    params.put("region", region);
+                    params.put("inventoryData", materialInventory);
+
+                    return params;
+                }
+
+                @Override
+                public Map<String, String> getHeaders() {
+                    Map<String, String> params = new HashMap<>();
+                    params.put("Content-Type", "application/x-www-form-urlencoded");
+                    return params;
+                }
+            };
+
+            // Access the RequestQueue through your singleton class.
+            HttpRequestSingleton.getInstance(getActivity()).addToRequestQueue(saveInventoryRequest);
+        }
+        catch (Throwable e){
+            Log.e(LOG_TAG, "Exception while sending material inventory.", e);
+        }
+    }
+
     private void hideProgressWhenComplete(ProgressDialog progress) {
         int currentFinished = updatesDone.incrementAndGet();
         String selectedRegion = getSelectedRegion();
-        if (currentFinished == 3) {
+        if (currentFinished == 4) {
             progress.dismiss();
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
             prefs.edit().putBoolean("hasInventoryChanged_" + selectedRegion, false).commit();

@@ -212,7 +212,16 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
 
     private void parseFfrkResponse(String requestUri, String response) {
         try {
-            if (requestUri.contains("/dff/party/list")) {
+            if (requestUri.contains("/dff/party/list_buddy")) {
+                parsePartyData(requestUri, response);
+            }
+            else if (requestUri.contains("/dff/party/list_equipment")) {
+                parseInventoryData("inventory", requestUri, response);
+            }
+            else if (requestUri.contains("/dff/party/list_other")) {
+                parseMaterialData(requestUri, response);
+            }
+            else if (requestUri.contains("/dff/party/list")) {
                 parsePartyData(requestUri, response);
                 parseInventoryData("inventory", requestUri, response);
             }
@@ -238,7 +247,6 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         JSONObject filteredJson = new JSONObject();
         filteredJson.put("soul_strikes", soulbreaks);
         filteredJson.put("legend_materias", legendMateria);
-
 
         // Check for an existing inventory
         String existingInventory;
@@ -285,6 +293,9 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
     private void parseInventoryData(String inventoryType, String requestUri, String inventoryResponse) throws JSONException {
         JSONObject json = new JSONObject(inventoryResponse);
         JSONArray equipments = json.getJSONArray("equipments");
+
+        JSONObject filteredResponse = new JSONObject();
+        filteredResponse.put("equipments", equipments);
 
         for (int i = 0, len = equipments.length(); i < len; i++) {
             JSONObject equipment = equipments.getJSONObject(i);
@@ -335,7 +346,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         FileOutputStream outputStream;
         try {
             outputStream = openFileOutput(fileName, Context.MODE_PRIVATE);
-            outputStream.write(equipments.toString().getBytes());
+            outputStream.write(filteredResponse.toString().getBytes());
             outputStream.close();
         } catch (Exception e) {
             Log.e(LOG_TAG, "Exception while writing inventory json to storage.", e);
@@ -343,6 +354,57 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         }
 
         Log.d(LOG_TAG, "Equipment inventory saved to file.");
+    }
+
+    private void parseMaterialData(String requestUri, String partyDataResponse) throws JSONException {
+        JSONObject json = new JSONObject(partyDataResponse);
+        JSONArray materials = json.getJSONArray("materials");
+
+        JSONObject filteredJson = new JSONObject();
+        filteredJson.put("materials", materials);
+
+        // Check for an existing inventory
+        String existingInventory;
+        try {
+            String region = isGlobalUrl(requestUri) ? "global" : "japan";
+            String fileName = isGlobalUrl(requestUri) ? getString(R.string.file_materials_global_json) : getString(R.string.file_materials_jp_json);
+            File file = new File(getApplicationContext().getFilesDir(), fileName);
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+
+            if (file.exists()) {
+                FileInputStream inputStream = new FileInputStream(file);
+                byte[] data = new byte[(int) file.length()];
+                inputStream.read(data);
+                existingInventory = new String(data, CharsetUtil.UTF_8);
+                JSONObject existingInventoryJson = new JSONObject(existingInventory);
+
+                boolean hasInventoryChanged = inventoryParser.hasMaterialsChanged(json, existingInventoryJson, region);
+                if (hasInventoryChanged && "global".equals(region)) {
+                    prefs.edit().putBoolean("hasInventoryChanged_" + region, true).commit();
+                }
+            }
+            else {
+                if ("global".equals(region)) {
+                    prefs.edit().putBoolean("hasInventoryChanged_" + region, true).commit();
+                }
+            }
+        }
+        catch (Exception e) {
+            Log.w(LOG_TAG, "Exception while parsing existing inventory, ignoring.", e);
+        }
+
+        FileOutputStream outputStream;
+        try {
+            String fileName = isGlobalUrl(requestUri) ? getString(R.string.file_materials_global_json) : getString(R.string.file_materials_jp_json);
+            outputStream = openFileOutput(fileName, Context.MODE_PRIVATE);
+            outputStream.write(filteredJson.toString().getBytes());
+            outputStream.close();
+        } catch (Exception e) {
+            Log.e(LOG_TAG, "Exception while writing inventory json to storage.", e);
+            return;
+        }
+
+        Log.d(LOG_TAG, "Materials saved to file.");
     }
 
     private void parseBattleData(String response) {
