@@ -16,4 +16,7 @@
     <item type="id" name="google_login_btn" />
     <item type="id" name="proxy_port" />
     <item type="id" name="login_status" />
+
+    <item type="id" name="wifi_settings" />
+    <item type="id" name="region_upload_spinner" />
 </resources>

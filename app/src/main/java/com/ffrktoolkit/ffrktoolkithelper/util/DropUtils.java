@@ -1,10 +1,13 @@
 package com.ffrktoolkit.ffrktoolkithelper.util;
 
+import android.util.Log;
+
 import java.util.HashMap;
 import java.util.Map;
 
 public class DropUtils {
 
+    private final static String LOG_TAG = "FFRKToolkitHelper";
     private final static Map<String, String> dropIdMap;
     private final static Map<String, Integer> rarityOverrideMap;
 
@@ -197,6 +200,8 @@ public class DropUtils {
         dropIdMap.put("161000095", "Ark");
         dropIdMap.put("161000096", "Deathgaze");
 
+        dropIdMap.put("95001014", "Gysahl Greens");
+
         rarityOverrideMap.put("161000057", 4);
         rarityOverrideMap.put("161000058", 4);
         rarityOverrideMap.put("161000059", 4);
@@ -240,5 +245,15 @@ public class DropUtils {
         }
 
         return rarity;
+    }
+
+    public static void addDropIdMapping(String dropId, String dropName) {
+        Log.d(LOG_TAG, "Drop ID Mapping: " + dropId + " -> " + dropName);
+        dropIdMap.put(dropId, dropName);
+    }
+
+    public static void addRarityOverrideMapping(String dropId, int rarity) {
+        Log.d(LOG_TAG, "Rarity Override Mapping: " + dropId + " -> " + rarity);
+        rarityOverrideMap.put(dropId, rarity);
     }
 }

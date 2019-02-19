@@ -8,6 +8,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -47,6 +48,9 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.util.CharsetUtil;
 
 public class ProxyService extends Service implements View.OnTouchListener, View.OnClickListener {
+    // Binder given to clients
+    private final IBinder binder = new LocalBinder();
+
     private HttpProxyServer server;
     private String LOG_TAG = "FFRKToolkitHelper";
     private InventoryParser inventoryParser;
@@ -124,7 +128,16 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
     public IBinder onBind(Intent intent) {
         // TODO: Return the communication channel to the service.
         Log.d(LOG_TAG, "onBind");
-        throw new UnsupportedOperationException("Not yet implemented");
+        return binder;
+    }
+
+    @Override
+    public void onDestroy() {
+        if (this.server != null) {
+            Log.d(LOG_TAG, "Stopping proxy before destroying service");
+            server.abort();
+            server = null;
+        }
     }
 
     public void startProxy() {
@@ -145,50 +158,56 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         createProxyNotification();
         Log.d(LOG_TAG, "startProxy");
         int port = PreferenceManager.getDefaultSharedPreferences(this).getInt("proxyPort", 8081);
-        this.server = DefaultHttpProxyServer.bootstrap().withPort(port)
-                .withFiltersSource(new HttpFiltersSourceAdapter() {
-                    public HttpFilters filterRequest(HttpRequest originalRequest, ChannelHandlerContext ctx) {
-                        return new HttpFiltersAdapter(originalRequest) {
-                            @Override
-                            public HttpResponse clientToProxyRequest(HttpObject httpObject) {
-                                // TODO: implement your filtering here
-                                if (isUrlForFfrk(originalRequest.getUri()) && (httpObject instanceof HttpRequest)) {
-                                    Log.d(LOG_TAG, "Sending request to " + ((HttpRequest) httpObject).getUri());
+
+        try {
+            this.server = DefaultHttpProxyServer.bootstrap().withPort(port)
+                    .withFiltersSource(new HttpFiltersSourceAdapter() {
+                        public HttpFilters filterRequest(HttpRequest originalRequest, ChannelHandlerContext ctx) {
+                            return new HttpFiltersAdapter(originalRequest) {
+                                @Override
+                                public HttpResponse clientToProxyRequest(HttpObject httpObject) {
+                                    // TODO: implement your filtering here
+                                    if (isUrlForFfrk(originalRequest.getUri()) && (httpObject instanceof HttpRequest)) {
+                                        Log.d(LOG_TAG, "Sending request to " + ((HttpRequest) httpObject).getUri());
+                                    }
+
+                                    return null;
                                 }
 
-                                return null;
-                            }
+                                @Override
+                                public HttpObject serverToProxyResponse(HttpObject httpObject) {
+                                    Log.d(LOG_TAG, httpObject.getClass().getName());
+                                    if (isUrlForFfrk(originalRequest.getUri()) && httpObject instanceof FullHttpResponse) {
+                                        FullHttpResponse response = (FullHttpResponse) httpObject;
+                                        Log.d(LOG_TAG, "Received response for " + originalRequest.getUri());
 
-                            @Override
-                            public HttpObject serverToProxyResponse(HttpObject httpObject) {
-                                Log.d(LOG_TAG, httpObject.getClass().getName());
-                                if (isUrlForFfrk(originalRequest.getUri()) && httpObject instanceof FullHttpResponse) {
-                                    FullHttpResponse response = (FullHttpResponse) httpObject;
-                                    Log.d(LOG_TAG, "Received response for " + originalRequest.getUri());
+                                        try {
+                                            URL urlPath = new URL(originalRequest.getUri());
+                                            Log.d(LOG_TAG, "Response path: " + urlPath.getPath());
+                                            String responseContent = response.content().toString(CharsetUtil.UTF_8);
+                                            parseFfrkResponse(originalRequest.getUri(), responseContent);
+                                            //Log.d(LOG_TAG, responseContent);
+                                        }
+                                        catch(Exception e) {
+                                            Log.e(LOG_TAG, "Exception while parsing response content.", e);
+                                        }
+                                    }
 
-                                    try {
-                                        URL urlPath = new URL(originalRequest.getUri());
-                                        Log.d(LOG_TAG, "Response path: " + urlPath.getPath());
-                                        String responseContent = response.content().toString(CharsetUtil.UTF_8);
-                                        parseFfrkResponse(originalRequest.getUri(), responseContent);
-                                        Log.d(LOG_TAG, responseContent);
-                                    }
-                                    catch(Exception e) {
-                                        Log.e(LOG_TAG, "Exception while parsing response content.", e);
-                                    }
+                                    return httpObject;
                                 }
+                            };
+                        }
 
-                                return httpObject;
-                            }
-                        };
-                    }
-
-                    public int getMaximumResponseBufferSizeInBytes()
-                    {
-                        return 10485760;
-                    }
-                })
-                .start();
+                        public int getMaximumResponseBufferSizeInBytes()
+                        {
+                            return 10485760;
+                        }
+                    })
+                    .start();
+        }
+        catch (Exception e) {
+            Log.d(LOG_TAG, "Exception while trying to start proxy server.", e);
+        }
     }
 
     private void parseFfrkResponse(String requestUri, String response) {
@@ -224,6 +243,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         // Check for an existing inventory
         String existingInventory;
         try {
+            String region = isGlobalUrl(requestUri) ? "global" : "japan";
             String fileName = isGlobalUrl(requestUri) ? getString(R.string.file_inventory_global_json) : getString(R.string.file_inventory_jp_json);
             File file = new File(getApplicationContext().getFilesDir(), fileName);
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
@@ -235,13 +255,13 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 existingInventory = new String(data, CharsetUtil.UTF_8);
                 JSONObject existingInventoryJson = new JSONObject(existingInventory);
 
-                boolean hasInventoryChanged = inventoryParser.hasInventoryChanged(json, existingInventoryJson, isGlobalUrl(requestUri) ? "global" : "japan");
+                boolean hasInventoryChanged = inventoryParser.hasInventoryChanged(json, existingInventoryJson, region);
                 if (hasInventoryChanged) {
-                    prefs.edit().putBoolean("hasInventoryChanged", true).commit();
+                    prefs.edit().putBoolean("hasInventoryChanged_" + region, true).commit();
                 }
             }
             else {
-                prefs.edit().putBoolean("hasInventoryChanged", true).commit();
+                prefs.edit().putBoolean("hasInventoryChanged_" + region, true).commit();
             }
         }
         catch (Exception e) {
@@ -288,6 +308,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         }
 
         try {
+            String region = isGlobalUrl(requestUri) ? "global" : "japan";
             File file = new File(getApplicationContext().getFilesDir(), fileName);
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
 
@@ -298,13 +319,13 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 existingInventory = new String(data, CharsetUtil.UTF_8);
                 JSONObject existingInventoryJson = new JSONObject(existingInventory);
 
-                boolean hasInventoryChanged = inventoryParser.hasEquipmentChanged(json, existingInventoryJson, isGlobalUrl(requestUri) ? "global" : "japan");
+                boolean hasInventoryChanged = inventoryParser.hasEquipmentChanged(json, existingInventoryJson, region);
                 if (hasInventoryChanged) {
-                    prefs.edit().putBoolean("hasInventoryChanged", true).commit();
+                    prefs.edit().putBoolean("hasInventoryChanged_" + region, true).commit();
                 }
             }
             else {
-                prefs.edit().putBoolean("hasInventoryChanged", true).commit();
+                prefs.edit().putBoolean("hasInventoryChanged_" + region, true).commit();
             }
         }
         catch (Exception e) {
@@ -496,7 +517,8 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             notificationManager.createNotificationChannel(channel);
         }
 
-        notificationManager.notify(ProxyService.PROXY_NOTIFICATION_ID, notificationBuilder.build());
+        //notificationManager.notify(ProxyService.PROXY_NOTIFICATION_ID, notificationBuilder.build());
+        startForeground(ProxyService.PROXY_NOTIFICATION_ID, notificationBuilder.build());
     }
 
     private boolean isUrlForFfrk(String url) {
@@ -505,6 +527,17 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
 
     private boolean isGlobalUrl(String url) {
         return url != null && url.contains("ffrk.denagames.com");
+    }
+
+    /**
+     * Class used for the client Binder.  Because we know this service always
+     * runs in the same process as its clients, we don't need to deal with IPC.
+     */
+    public class LocalBinder extends Binder {
+        ProxyService getService() {
+            // Return this instance of ProxyService so clients can call public methods
+            return ProxyService.this;
+        }
     }
 
 }

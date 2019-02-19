@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string-array name="ffrk_regions">
+        <item>Global</item>
+        <item>Japan</item>
+    </string-array>
+
+    <string-array name="ffrk_region_values">
+        <item>global</item>
+        <item>japan</item>
+    </string-array>
+
+</resources>

@@ -38,6 +38,24 @@ public class InventoryParser {
                     }
                 }
 
+                JSONArray existingSoulbreaks = existingInventory.optJSONArray("soulbreaks");
+                if (existingSoulbreaks != null) {
+                    for (int i = 0; i < existingSoulbreaks.length(); i++) {
+                        JSONObject existingSoulbreak = existingSoulbreaks.getJSONObject(i);
+                        Object sbId = existingSoulbreak.opt("id");
+                        String existingRegion = existingSoulbreak.optString("region");
+                        if (existingRegion == null) {
+                            existingRegion = "global";
+                            existingSoulbreak.put("region", existingRegion);
+                        }
+
+                        if (sbId != null && !existingRegion.equalsIgnoreCase(region)) {
+                            newSoulbreaks.put(existingSoulbreak);
+                        }
+                    }
+                }
+
+
                 if (newSoulbreaks.length() > 0) {
                     existingInventory.put("soulbreaks", newSoulbreaks);
                 }
@@ -56,6 +74,24 @@ public class InventoryParser {
                         newLegendMaterias.put(newLm);
                     }
                 }
+
+                JSONArray existingLms = existingInventory.optJSONArray("legendMateria");
+                if (existingLms != null) {
+                    for (int i = 0; i < existingLms.length(); i++) {
+                        JSONObject existingLm = existingLms.getJSONObject(i);
+                        Object lmId = existingLm.opt("id");
+                        String existingRegion = existingLm.optString("region");
+                        if (existingRegion == null) {
+                            existingRegion = "global";
+                            existingLm.put("region", existingRegion);
+                        }
+
+                        if (lmId != null && !existingRegion.equalsIgnoreCase(region)) {
+                            newLegendMaterias.put(existingLm);
+                        }
+                    }
+                }
+
 
                 if (newLegendMaterias.length() > 0) {
                     existingInventory.put("legendMateria", newLegendMaterias);

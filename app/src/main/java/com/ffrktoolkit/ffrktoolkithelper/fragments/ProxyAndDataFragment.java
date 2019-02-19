@@ -3,6 +3,8 @@ package com.ffrktoolkit.ffrktoolkithelper.fragments;
 import android.annotation.TargetApi;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -17,17 +19,18 @@ import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
-import android.text.Editable;
-import android.text.TextWatcher;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -40,6 +43,7 @@ import com.ffrktoolkit.ffrktoolkithelper.OverlayService;
 import com.ffrktoolkit.ffrktoolkithelper.ProxyService;
 import com.ffrktoolkit.ffrktoolkithelper.R;
 import com.ffrktoolkit.ffrktoolkithelper.parser.InventoryParser;
+import com.ffrktoolkit.ffrktoolkithelper.util.DropUtils;
 import com.ffrktoolkit.ffrktoolkithelper.util.HttpRequestSingleton;
 import com.ffrktoolkit.ffrktoolkithelper.util.JsonUtils;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
@@ -55,9 +59,13 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import io.netty.util.CharsetUtil;
 
 /**
  * This fragment shows general preferences only. It is used when the
@@ -84,6 +92,7 @@ public class ProxyAndDataFragment extends Fragment {
     public void onCreate(Bundle bundle) {
         super.onCreate(bundle);
         registerReceiver();
+        downloadDataMaps();
     }
 
     @Override
@@ -96,7 +105,7 @@ public class ProxyAndDataFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        final Switch enableProxySwitch = (Switch) getView().findViewById(R.id.enable_proxy_switch);
+        final Switch enableProxySwitch = getView().findViewById(R.id.enable_proxy_switch);
         enableProxySwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -115,7 +124,7 @@ public class ProxyAndDataFragment extends Fragment {
             }
         });
 
-        final Switch enableOverlaySwitch = (Switch) getView().findViewById(R.id.enable_overlay_switch);
+        final Switch enableOverlaySwitch = getView().findViewById(R.id.enable_overlay_switch);
         enableOverlaySwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -131,7 +140,7 @@ public class ProxyAndDataFragment extends Fragment {
             }
         });
 
-        final Button resetOverlayBtn = (Button) getView().findViewById(R.id.reset_overlay_btn);
+        final Button resetOverlayBtn = getView().findViewById(R.id.reset_overlay_btn);
         resetOverlayBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -147,18 +156,32 @@ public class ProxyAndDataFragment extends Fragment {
             }
         });
 
-        final Button sendInventoryBtn = (Button) getView().findViewById(R.id.submit_inventory_btn);
+        final Button openWifiBtn = getView().findViewById(R.id.wifi_settings);
+        openWifiBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                ClipboardManager clipboardManager = (ClipboardManager) getActivity().getSystemService(Context.CLIPBOARD_SERVICE);
+                ClipData clipData = ClipData.newPlainText("proxy_bypass", getResources().getString(R.string.proxy_bypass_list));
+                clipboardManager.setPrimaryClip(clipData);
+
+                Toast toast = Toast.makeText(getActivity().getApplicationContext(), getString(R.string.proxy_bypass_copied), Toast.LENGTH_SHORT);
+                toast.show();
+
+                startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
+            }
+        });
+
+        final Button sendInventoryBtn = getView().findViewById(R.id.submit_inventory_btn);
         sendInventoryBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 sendInventoryBtn.setEnabled(false);
-
-                processInventoryData("global");
+                String region = getSelectedRegion();
+                processInventoryData(region);
             }
         });
 
-
-        final Button googleLoginBtn = (Button) getView().findViewById(R.id.google_login_btn);
+        final Button googleLoginBtn = getView().findViewById(R.id.google_login_btn);
         googleLoginBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -183,7 +206,27 @@ public class ProxyAndDataFragment extends Fragment {
             }
         });
 
-        final EditText proxyPortText = (EditText) getView().findViewById(R.id.proxy_port);
+        final Spinner regionUploadSpinner = getView().findViewById(R.id.region_upload_spinner);
+        final ArrayAdapter<CharSequence> regionSpinnerAdapter = ArrayAdapter.createFromResource(getActivity(), R.array.ffrk_regions, android.R.layout.simple_spinner_item);
+        regionSpinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        regionUploadSpinner.setAdapter(regionSpinnerAdapter);
+
+        regionUploadSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                checkIfInventoryChanged();
+
+                final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
+                prefs.edit().putInt("selected_region", position).commit();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                //parent.setSelection(0);
+            }
+        });
+
+        final EditText proxyPortText = getView().findViewById(R.id.proxy_port);
         proxyPortText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
@@ -264,6 +307,7 @@ public class ProxyAndDataFragment extends Fragment {
         super.onResume();
         checkIfAlreadySignedIn();
         checkIfInventoryChanged();
+        updateDataMaps();
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
         boolean isProxyEnabled = prefs.getBoolean("enableProxy", false);
@@ -282,6 +326,10 @@ public class ProxyAndDataFragment extends Fragment {
         final EditText proxyPortText = (EditText) getView().findViewById(R.id.proxy_port);
         int proxyPort = prefs.getInt("proxyPort", Integer.valueOf(getString(R.string.default_proxy_port)));
         proxyPortText.setText(String.valueOf(proxyPort));
+
+        final Spinner regionUploadSpinner = getView().findViewById(R.id.region_upload_spinner);
+        int selectedRegion = prefs.getInt("selected_region", 0);
+        regionUploadSpinner.setSelection(selectedRegion);
     }
 
     @Override
@@ -322,14 +370,15 @@ public class ProxyAndDataFragment extends Fragment {
     }
 
     private void checkIfInventoryChanged() {
-        final Button sendInventoryBtn = (Button) this.getView().findViewById(R.id.submit_inventory_btn);
+        final String selectedRegion = getSelectedRegion();
+        final Button sendInventoryBtn = this.getView().findViewById(R.id.submit_inventory_btn);
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
         Drawable statusIcon = null;
-        Log.d(LOG_TAG, "Has inventory changed: " + prefs.getBoolean("hasInventoryChanged", false));
-        if (!prefs.contains("hasInventoryChanged")) {
+        Log.d(LOG_TAG, "Has inventory changed: " + prefs.getBoolean("hasInventoryChanged_" + selectedRegion, false));
+        if (!prefs.contains("hasInventoryChanged_" + selectedRegion)) {
             statusIcon = getResources().getDrawable(R.drawable.ic_clear_black_24dp);
         }
-        else if (prefs.getBoolean("hasInventoryChanged", false)) {
+        else if (prefs.getBoolean("hasInventoryChanged_" + selectedRegion, false)) {
             statusIcon = getResources().getDrawable(R.drawable.ic_update_black_24dp);
         }
         else {
@@ -550,7 +599,12 @@ public class ProxyAndDataFragment extends Fragment {
                         hideProgressWhenComplete(progress);
                         try {
                             if (response != null && !"false".equals(response) && !"".equals(response)) {
-                                json = new JSONObject(response);
+                                if ("[]".equals(response)) {
+                                    json = new JSONObject();
+                                }
+                                else {
+                                    json = new JSONObject(response);
+                                }
                             }
 
                             callSaveInventory(account, jsonBody, json, region, progress);
@@ -603,8 +657,6 @@ public class ProxyAndDataFragment extends Fragment {
                         hideProgressWhenComplete(progress);
                         progress.setProgress(progress.getProgress() + 25);
                         Log.d(LOG_TAG, "Response: " + response.toString());
-                        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
-                        //progress.dismiss();
                     }
                 }, new Response.ErrorListener() {
 
@@ -640,7 +692,7 @@ public class ProxyAndDataFragment extends Fragment {
         HttpRequestSingleton.getInstance(getActivity()).addToRequestQueue(saveInventoryRequest);
     }
 
-    private void callSaveRelicInventory(final GoogleSignInAccount account, final JSONObject relicInventory, String region, final ProgressDialog progress) {
+    private void callSaveRelicInventory(final GoogleSignInAccount account, final JSONObject relicInventory, final String region, final ProgressDialog progress) {
         String url = getString(R.string.user_functions_url);
 
         Log.d(LOG_TAG, "Inside relic save call.");
@@ -673,6 +725,7 @@ public class ProxyAndDataFragment extends Fragment {
                     params.put("network", "Android");
                     params.put("uid", account.getEmail());
                     params.put("token", account.getIdToken());
+                    params.put("region", region);
                     params.put("inventoryData", relicInventory.toString());
 
                     return params;
@@ -696,16 +749,99 @@ public class ProxyAndDataFragment extends Fragment {
 
     private void hideProgressWhenComplete(ProgressDialog progress) {
         int currentFinished = updatesDone.incrementAndGet();
+        String selectedRegion = getSelectedRegion();
         if (currentFinished == 3) {
             progress.dismiss();
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
-            prefs.edit().putBoolean("hasInventoryChanged", false).commit();
+            prefs.edit().putBoolean("hasInventoryChanged_" + selectedRegion, false).commit();
             checkIfInventoryChanged();
             Toast toast = Toast.makeText(getActivity().getApplicationContext(), getString(R.string.toast_inventory_saved_successfully), Toast.LENGTH_SHORT);
             toast.show();
 
             final Button sendInventoryBtn = (Button) getActivity().findViewById(R.id.submit_inventory_btn);
             sendInventoryBtn.setEnabled(true);
+        }
+    }
+
+    private String getSelectedRegion() {
+        try {
+            final Spinner regionUploadSpinner = getView().findViewById(R.id.region_upload_spinner);
+            String[] underlyingValues = getResources().getStringArray(R.array.ffrk_region_values);
+            return underlyingValues[regionUploadSpinner.getSelectedItemPosition()];
+        }
+        catch (Exception e) {
+            Log.d(LOG_TAG, "Exception while finding region, defaulting to global.", e);
+            return "global";
+        }
+    }
+
+    private void downloadDataMaps() {
+        String url = getString(R.string.data_maps_url);
+
+        Log.d(LOG_TAG, "Inside update data maps.");
+        try {
+            StringRequest updateMapsRequest = new StringRequest
+                    (Request.Method.GET, url, new Response.Listener<String>() {
+
+                        @Override
+                        public void onResponse(String response) {
+                            //Log.d(LOG_TAG, "Response: " + response);
+                            if (response != null && !"false".equals(response) && !"".equals(response)) {
+                                FileOutputStream outputStream;
+                                try {
+                                    String fileName = getString(R.string.external_data_map_json);
+                                    outputStream = getActivity().openFileOutput(fileName, Context.MODE_PRIVATE);
+                                    outputStream.write(response.getBytes());
+                                    outputStream.close();
+                                    updateDataMaps();
+                                } catch (Exception e) {
+                                    Log.e(LOG_TAG, "Exception while writing data map json to storage.", e);
+                                    return;
+                                }
+                            }
+                        }
+                    }, new Response.ErrorListener() {
+
+                        @Override
+                        public void onErrorResponse(VolleyError error) {
+                            Log.e(LOG_TAG, "Error in response: " + error.toString());
+                        }
+                    });
+
+            HttpRequestSingleton.getInstance(getActivity()).addToRequestQueue(updateMapsRequest);
+        }
+        catch (Throwable e){
+            Log.e(LOG_TAG, "Exception while sending relic inventory.", e);
+        }
+    }
+
+    private void updateDataMaps() {
+        try {
+            String fileName = getString(R.string.external_data_map_json);
+            File file = new File(getActivity().getFilesDir(), fileName);
+
+            if (file.exists()) {
+                FileInputStream inputStream = new FileInputStream(file);
+                byte[] data = new byte[(int) file.length()];
+                inputStream.read(data);
+                String dataMaps = new String(data, CharsetUtil.UTF_8);
+                JSONObject dataMapsJson = new JSONObject(dataMaps);
+
+                JSONArray dropIdsList = dataMapsJson.getJSONArray("dropIdsList");
+                for (int i = 0, len = dropIdsList.length(); i < len; i++) {
+                    JSONObject dropIdMapping = dropIdsList.getJSONObject(i);
+                    DropUtils.addDropIdMapping(dropIdMapping.getString("id"), dropIdMapping.getString("name"));
+                }
+
+                JSONArray rarityOverrideList = dataMapsJson.getJSONArray("rarityOverrideList");
+                for (int i = 0, len = rarityOverrideList.length(); i < len; i++) {
+                    JSONObject rarityOverrideMapping = rarityOverrideList.getJSONObject(i);
+                    DropUtils.addRarityOverrideMapping(rarityOverrideMapping.getString("id"), rarityOverrideMapping.getInt("rarity"));
+                }
+            }
+        }
+        catch (Exception e) {
+            Log.w(LOG_TAG, "Exception while parsing data maps.", e);
         }
     }
 }
