@@ -3,6 +3,8 @@
     <item type="id" name="overlay_main" />
     <item type="id" name="overlay_resizable" />
     <item type="id" name="overlay_container" />
+    <item type="id" name="overlay_button_down_arrow" />
+    <item type="id" name="overlay_button_up_arrow" />
     <!--<item type="id" name="overlay_spinner_container" />-->
     <!--<item type="id" name="overlay_spinner" />-->
     <item type="id" name="overlay_button_close" />
@@ -19,4 +21,6 @@
 
     <item type="id" name="wifi_settings" />
     <item type="id" name="region_upload_spinner" />
+
+    <item type="id" name="overlay_mode_spinner" />
 </resources>

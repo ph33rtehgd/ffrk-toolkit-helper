@@ -11,4 +11,9 @@
         <item>japan</item>
     </string-array>
 
+    <string-array name="overlay_modes">
+        <item>Dynamic</item>
+        <item>Scrolling</item>
+    </string-array>
+
 </resources>

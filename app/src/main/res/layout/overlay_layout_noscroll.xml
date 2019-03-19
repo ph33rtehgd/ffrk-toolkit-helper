@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:orientation="horizontal" android:id="@id/overlay_main" android:layout_width="fill_parent" android:layout_height="wrap_content"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+    <RelativeLayout android:id="@id/overlay_resizable" android:layout_width="fill_parent" android:layout_height="fill_parent">
+
+        <RelativeLayout
+            android:id="@id/overlay_container" android:layout_width="fill_parent" android:layout_height="96.0dip"
+            android:alpha="0.9" android:background="@color/colorPrimaryDark" android:fillViewport="true">
+
+            <TextView
+                android:id="@id/overlay_text" android:layout_width="fill_parent" android:layout_height="96.0dip"
+                android:maxLines="15" android:scrollbars="vertical" android:textColor="@color/white"
+                android:text="@string/overlay_waiting_for_data"/>
+        </RelativeLayout>
+        <Button android:textSize="8.0sp" android:textColor="@color/white" android:id="@id/overlay_button_close"
+            android:background="@color/colorPrimaryDark" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:minHeight="32.0dip" android:text="@string/overlay_close"
+            android:layout_below="@id/overlay_container" android:onClick="closeButtonClicked" android:alpha="0.9" />
+    </RelativeLayout>
+</LinearLayout>

@@ -11,7 +11,7 @@
                     android:singleLine="true"
                     android:layout_width="match_parent" android:layout_height="wrap_content" />
             </LinearLayout>
-            <Button android:id="@id/reset_overlay_btn" android:text="@string/reset_overlay_btn_text" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/activity_vertical_margin" />
+            <!--<Button android:id="@id/reset_overlay_btn" android:text="@string/reset_overlay_btn_text" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/activity_vertical_margin" />-->
             <Button android:id="@id/wifi_settings" android:text="@string/open_wifi_settings_btn_text" android:enabled="true" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/activity_vertical_margin" />
 
 

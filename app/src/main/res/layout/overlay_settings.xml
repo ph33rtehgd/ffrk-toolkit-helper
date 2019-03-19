@@ -1,0 +1,9 @@
+<FrameLayout android:layout_width="fill_parent" android:layout_height="fill_parent"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+    <ScrollView android:layout_width="fill_parent" android:layout_height="wrap_content">
+        <LinearLayout android:orientation="vertical" android:layout_width="fill_parent" android:layout_height="wrap_content">
+            <Spinner android:id="@id/overlay_mode_spinner" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/activity_vertical_margin" />
+            <Button android:id="@id/reset_overlay_btn" android:text="@string/reset_overlay_btn_text" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/activity_vertical_margin" />
+        </LinearLayout>
+    </ScrollView>
+</FrameLayout>

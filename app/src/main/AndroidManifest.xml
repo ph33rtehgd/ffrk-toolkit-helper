@@ -23,6 +23,10 @@
             android:name=".OverlayService"
             android:enabled="true"
             android:exported="false" />
+        <service
+            android:name=".StaminaService"
+            android:enabled="true"
+            android:exported="false" />
 
         <activity
             android:name=".FFRKToolkitHelperActivity"
@@ -34,8 +38,13 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-
         </activity>
+
+        <receiver android:enabled="false" android:name="com.ffrktoolkit.ffrktoolkithelper.receivers.BroadcastIntentReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

@@ -34,6 +34,8 @@ public class OverlayService extends Service {
     private WindowManager mWindowManager;
     private View mView;
     private View.OnTouchListener touchListener;
+    private WindowManager.LayoutParams mWindowsParams;
+    private int currentPage = 1;
 
     public OverlayService() {
     }
@@ -50,10 +52,11 @@ public class OverlayService extends Service {
     }
 
     @Override
-    @TargetApi(23)
+    //@TargetApi(23)
     public int onStartCommand(Intent intent, int flags, int startId) {
         mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        final String overlayMode = prefs.getString("overlay_mode", "dynamic");
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!Settings.canDrawOverlays(this)) {
@@ -64,7 +67,7 @@ public class OverlayService extends Service {
 
         if (intent != null) {
             String action = intent.getAction();
-            Log.d(LOG_TAG, "Overlay intent actiom: " + action);
+            Log.d(LOG_TAG, "Overlay intent action: " + action);
             if ("showOverlay".equalsIgnoreCase(action)) {
                 prefs.edit().putBoolean("enableOverlay", true).commit();
             }
@@ -107,16 +110,16 @@ public class OverlayService extends Service {
                 }
             };
 
-            allAboutLayout(intent);
+            allAboutLayout(intent, overlayMode);
             moveView();
         }
 
         List<String> drops = intent.getStringArrayListExtra("drops");
         Log.d(LOG_TAG, "Drops broadcast received.");
-        final TextView dropView = (TextView) mView.findViewById(R.id.overlay_text);
-        final RelativeLayout dropContainer = (RelativeLayout) mView.findViewById(R.id.overlay_container);
-        final RelativeLayout overlayContainer = (RelativeLayout) mView.findViewById(R.id.overlay_resizable);
-        final LinearLayout rootContainer = (LinearLayout) mView.findViewById(R.id.overlay_main);
+        final TextView dropView = mView.findViewById(R.id.overlay_text);
+        final RelativeLayout dropContainer = mView.findViewById(R.id.overlay_container);
+        final RelativeLayout overlayContainer = mView.findViewById(R.id.overlay_resizable);
+        final LinearLayout rootContainer = mView.findViewById(R.id.overlay_main);
 
         final float scale = getApplicationContext().getResources().getDisplayMetrics().density;
         int pixels = (int) (19 * scale + 0.5f);
@@ -133,16 +136,27 @@ public class OverlayService extends Service {
                 dropList += getString(R.string.overlay_no_drops);
             }
 
-            int containerSize = Math.max(pixels * drops.size(), pixels);
-            dropContainer.setLayoutParams(new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT, containerSize));
-            dropView.setLayoutParams(new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT, containerSize));
-            LayoutWrapContentUpdater.wrapContentAgain(rootContainer);
+
+            if ("dynamic".equalsIgnoreCase(overlayMode)) {
+                int containerSize = Math.max(pixels * drops.size(), pixels);
+                dropContainer.setLayoutParams(new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT, containerSize));
+                dropView.setLayoutParams(new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT, containerSize));
+                LayoutWrapContentUpdater.wrapContentAgain(rootContainer);
+            }
+
             dropView.setText(dropList);
         }
         else {
             dropView.setText(getString(R.string.overlay_waiting_for_data));
-            dropContainer.setLayoutParams(new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT, pixels));
-            LayoutWrapContentUpdater.wrapContentAgain(rootContainer);
+
+            if ("dynamic".equalsIgnoreCase(overlayMode)) {
+                dropContainer.setLayoutParams(new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT, pixels));
+                LayoutWrapContentUpdater.wrapContentAgain(rootContainer);
+            }
+        }
+
+        if ("scrolling".equalsIgnoreCase(overlayMode)) {
+            updateScrollViews();
         }
 
         return super.onStartCommand(intent, flags, startId);
@@ -157,7 +171,6 @@ public class OverlayService extends Service {
         super.onDestroy();
     }
 
-    WindowManager.LayoutParams mWindowsParams;
     private void moveView() {
         //DisplayMetrics metrics = mContext.getResources().getDisplayMetrics();
         //int width = (int) (metrics.widthPixels * 0.7f);
@@ -189,10 +202,17 @@ public class OverlayService extends Service {
         dropListView.setOnTouchListener(touchListener);
     }
 
-    private void allAboutLayout(Intent intent) {
+    private void allAboutLayout(Intent intent, String overlayMode) {
 
         LayoutInflater layoutInflater = (LayoutInflater) mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        mView = layoutInflater.inflate(R.layout.overlay_layout, null);
+
+        if ("scrolling".equalsIgnoreCase(overlayMode)) {
+            mView = layoutInflater.inflate(R.layout.overlay_layout, null);
+        }
+        else {
+            mView = layoutInflater.inflate(R.layout.overlay_layout_noscroll, null);
+        }
+
 
         final TextView tvValue = (TextView) mView.findViewById(R.id.overlay_text);
         Button btnClose = (Button) mView.findViewById(R.id.overlay_button_close);
@@ -205,6 +225,141 @@ public class OverlayService extends Service {
                 stopSelf();
             }
         });
+
+    }
+
+    private void updateScrollViews() {
+        if (mView != null) {
+            Button upArrow = mView.findViewById(R.id.overlay_button_up_arrow);
+            upArrow.setEnabled(false);
+            upArrow.setAlpha(0.0f);
+            Button downArrow = mView.findViewById(R.id.overlay_button_down_arrow);
+            downArrow.setEnabled(false);
+            downArrow.setAlpha(0.0f);
+
+            TextView overlayText = mView.findViewById(R.id.overlay_text);
+            overlayText.measure(0, View.MeasureSpec.UNSPECIFIED);
+
+            RelativeLayout relativeLayout = mView.findViewById(R.id.overlay_container);
+            relativeLayout.measure(0, View.MeasureSpec.UNSPECIFIED);
+
+            int layoutHeight = relativeLayout.getMeasuredHeight() - relativeLayout.getBaseline();
+
+            int lineHeight = overlayText.getLineHeight();
+            int lineCount = overlayText.getLineCount();
+            int textHeight = lineHeight * lineCount;
+            if (textHeight > layoutHeight) {
+                upArrow.setAlpha(0.1f);
+                downArrow.setEnabled(true);
+                downArrow.setAlpha(1.0f);
+            }
+        }
+    }
+
+    public void closeButtonClicked(View view) {
+        //Toast t = Toast.makeText(this, "Should close", Toast.LENGTH_LONG);
+        //t.show();
+    }
+
+    private int getLineHeight() {
+        if (mView != null) {
+            TextView overlayText = mView.findViewById(R.id.overlay_text);
+            overlayText.measure(0, View.MeasureSpec.UNSPECIFIED);
+            return overlayText.getLineHeight();
+        }
+
+        return 15;
+    }
+
+    private int getLinesPerPage() {
+        if (mView != null) {
+            RelativeLayout relativeLayout = mView.findViewById(R.id.overlay_container);
+            relativeLayout.measure(0, View.MeasureSpec.UNSPECIFIED);
+
+            int lineHeight = this.getLineHeight();
+            int overlayHeight = relativeLayout.getMeasuredHeight();
+            Log.d(LOG_TAG, "Lines per page: " + (int)Math.floor(overlayHeight/(double)lineHeight));
+            return (int)Math.floor(overlayHeight/(double)lineHeight);
+        }
+
+        return 5;
+    }
+
+    private int getPageCount() {
+        if (mView != null) {
+            TextView overlayText = mView.findViewById(R.id.overlay_text);
+            overlayText.measure(0, View.MeasureSpec.UNSPECIFIED);
+
+            RelativeLayout relativeLayout = mView.findViewById(R.id.overlay_container);
+            relativeLayout.measure(0, View.MeasureSpec.UNSPECIFIED);
+
+            int lineHeight = overlayText.getLineHeight();
+            int lineCount = overlayText.getLineCount();
+
+            return lineHeight * lineCount - overlayText.getBaseline();
+        }
+
+        Log.d(LOG_TAG, "Returning default page count");
+
+        return 1;
+    }
+
+    private void nextPage() {
+        ++currentPage;
+        int pageCount = getPageCount();
+        if (currentPage >= pageCount) {
+            currentPage = pageCount;
+        }
+    }
+
+    private void prevPage() {
+        --currentPage;
+        if (currentPage < 1) {
+            currentPage = 1;
+        }
+    }
+
+    public void upButtonClicked(View view) {
+        if (mView != null) {
+            prevPage();
+
+            if (currentPage == 1) {
+                Button upArrow = mView.findViewById(R.id.overlay_button_up_arrow);
+                upArrow.setEnabled(false);
+                upArrow.setAlpha(0.1f);
+            }
+            Button downArrow = mView.findViewById(R.id.overlay_button_down_arrow);
+            downArrow.setEnabled(true);
+            downArrow.setAlpha(1.0f);
+
+            int linesPerPage = this.getLinesPerPage();
+            int lineHeight = this.getLineHeight();
+
+            TextView overlayText = mView.findViewById(R.id.overlay_text);
+            overlayText.scrollTo(0, lineHeight*linesPerPage*(currentPage - 1));
+        }
+    }
+
+    public void downButtonClicked(View view) {
+
+        if (mView != null) {
+            nextPage();
+
+            if (currentPage == this.getPageCount()) {
+                Button downArrow = mView.findViewById(R.id.overlay_button_down_arrow);
+                downArrow.setEnabled(false);
+                downArrow.setAlpha(0.1f);
+            }
+            Button upArrow = mView.findViewById(R.id.overlay_button_up_arrow);
+            upArrow.setEnabled(true);
+            upArrow.setAlpha(1.0f);
+
+            int linesPerPage = this.getLinesPerPage();
+            int lineHeight = this.getLineHeight();
+
+            TextView overlayText = mView.findViewById(R.id.overlay_text);
+            overlayText.scrollTo(0, lineHeight*linesPerPage*(currentPage - 1) + 12);
+        }
 
     }
 }

@@ -19,6 +19,7 @@ import android.view.ViewGroup;
 
 import android.widget.TextView;
 
+import com.ffrktoolkit.ffrktoolkithelper.fragments.OverlayFragment;
 import com.ffrktoolkit.ffrktoolkithelper.fragments.ProxyAndDataFragment;
 import com.ffrktoolkit.ffrktoolkithelper.views.ViewPagerAdapter;
 
@@ -39,6 +40,7 @@ public class FFRKToolkitHelperActivity extends AppCompatActivity {
 
         ViewPagerAdapter viewPagerAdapter = new ViewPagerAdapter(getSupportFragmentManager());
         viewPagerAdapter.addFragment(ProxyAndDataFragment.newInstance(), getString(R.string.pref_header_proxy_and_data));
+        viewPagerAdapter.addFragment(OverlayFragment.newInstance(), getString(R.string.pref_overlay_settings));
         //viewPagerAdapter.addFragment(ProxyAndDataFragment.newInstance(), getString(R.string.pref_header_proxy_and_data));
         mViewPager.setAdapter(viewPagerAdapter);
         ((TabLayout) findViewById(R.id.tab_layout)).setupWithViewPager(mViewPager);

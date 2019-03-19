@@ -213,34 +213,68 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
     private void parseFfrkResponse(String requestUri, String response) {
         try {
             if (requestUri.contains("/dff/party/list_buddy")) {
-                parsePartyData(requestUri, response);
+                JSONObject json = new JSONObject(response);
+                parsePartyData(requestUri, json);
             }
             else if (requestUri.contains("/dff/party/list_equipment")) {
-                parseInventoryData("inventory", requestUri, response);
+                JSONObject json = new JSONObject(response);
+                parseInventoryData("inventory", requestUri, json);
             }
             else if (requestUri.contains("/dff/party/list_other")) {
-                parseMaterialData(requestUri, response);
+                JSONObject json = new JSONObject(response);
+                parseMaterialData(requestUri, json);
             }
             else if (requestUri.contains("/dff/party/list")) {
-                parsePartyData(requestUri, response);
-                parseInventoryData("inventory", requestUri, response);
+                JSONObject json = new JSONObject(response);
+                parsePartyData(requestUri, json);
+                parseInventoryData("inventory", requestUri, json);
+                parseStamina(json);
             }
             else if (requestUri.contains("/dff/warehouse/get_equipment_list")) {
-                parseInventoryData("vault", requestUri, response);
+                JSONObject json = new JSONObject(response);
+                parseInventoryData("vault", requestUri, json);
             }
             else if (requestUri.contains("get_battle_init_data")) {
-                parseBattleData(response);
+                JSONObject json = new JSONObject(response);
+                parseBattleData(json);
             }
             else if (requestUri.contains("win_battle")) {
+                JSONObject json = new JSONObject(response);
+                parseStamina(json);
             }
+            else if (requestUri.contains("escape_battle")) {
+                JSONObject json = new JSONObject(response);
+                parseStamina(json);
+            }
+            else if (requestUri.contains("enter_multi")) {
+                JSONObject json = new JSONObject(response);
+                parseStamina(json);
+            }
+            else if (requestUri.contains("enter_dungeon")) {
+                JSONObject json = new JSONObject(response);
+                parseStamina(json);
+            }
+            else if (requestUri.contains("/dff/battle/escape") || requestUri.contains("/dff/battle/win")
+                    || requestUri.contains("/escape_battle") || requestUri.contains("/win_battle")) {
+                JSONObject json = new JSONObject(response);
+                parseStamina(json);
+            }
+            else if (requestUri.endsWith("/dungeons") || requestUri.contains("/dungeons?world_id")) {
+                JSONObject json = new JSONObject(response);
+                parseStamina(json);
+            }
+            else if (requestUri.endsWith("/battles")) {
+                JSONObject json = new JSONObject(response);
+                parseStamina(json);
+            }
+
         }
         catch (Exception e) {
             Log.e(LOG_TAG, "Exception while parsing FFRK response." ,e);
         }
     }
 
-    private void parsePartyData(String requestUri, String partyDataResponse) throws JSONException {
-        JSONObject json = new JSONObject(partyDataResponse);
+    private void parsePartyData(String requestUri, JSONObject json) throws JSONException {
         JSONArray soulbreaks = json.getJSONArray("soul_strikes");
         JSONArray legendMateria = json.getJSONArray("legend_materias");
 
@@ -290,8 +324,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         Log.d(LOG_TAG, "Inventory saved to file.");
     }
 
-    private void parseInventoryData(String inventoryType, String requestUri, String inventoryResponse) throws JSONException {
-        JSONObject json = new JSONObject(inventoryResponse);
+    private void parseInventoryData(String inventoryType, String requestUri, JSONObject json) throws JSONException {
         JSONArray equipments = json.getJSONArray("equipments");
 
         JSONObject filteredResponse = new JSONObject();
@@ -356,8 +389,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         Log.d(LOG_TAG, "Equipment inventory saved to file.");
     }
 
-    private void parseMaterialData(String requestUri, String partyDataResponse) throws JSONException {
-        JSONObject json = new JSONObject(partyDataResponse);
+    private void parseMaterialData(String requestUri, JSONObject json) throws JSONException {
         JSONArray materials = json.getJSONArray("materials");
 
         JSONObject filteredJson = new JSONObject();
@@ -407,11 +439,10 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         Log.d(LOG_TAG, "Materials saved to file.");
     }
 
-    private void parseBattleData(String response) {
+    private void parseBattleData(JSONObject json) {
         List<JSONObject> drops = new ArrayList<>();
         try {
-            JSONObject responseData = new JSONObject(response);
-            JSONObject battleData = responseData.getJSONObject("battle");
+            JSONObject battleData = json.getJSONObject("battle");
             JSONArray rounds = battleData.getJSONArray("rounds");
 
             for (int i = 0, roundsLen = rounds.length(); i < roundsLen; i++) {
@@ -589,6 +620,41 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
 
     private boolean isGlobalUrl(String url) {
         return url != null && url.contains("ffrk.denagames.com");
+    }
+
+    private void parseStamina(JSONObject json)
+    {
+        SharedPreferences.Editor prefsEditor = PreferenceManager.getDefaultSharedPreferences(this).edit();
+        try
+        {
+            Log.d(LOG_TAG, "Inside parse stamina");
+            JSONObject user = json.optJSONObject("user");
+            if (user != null) {
+                Log.d(LOG_TAG, "User found");
+                JSONObject staminaInfo = user.getJSONObject("stamina_info");
+                int recoveryTime = user.optInt("stamina_recovery_time");
+                int recoveryTimeRemaining = user.optInt("stamina_recovery_remaining_time");
+                int maxStamina = user.getInt("max_stamina");
+                int stamina = user.getInt("stamina");
+                long serverTime = json.getLong("SERVER_TIME");
+
+                prefsEditor.putLong("serverTime", serverTime);
+                prefsEditor.putInt("currentStamina", stamina);
+                prefsEditor.putInt("maxStamina", maxStamina);
+                prefsEditor.putInt("staminaRecoveryRemainingTime", recoveryTimeRemaining);
+                prefsEditor.putInt("staminaRecoveryTime", recoveryTime);
+                prefsEditor.commit();
+
+                Intent staminaNotification = new Intent(getApplicationContext(), StaminaService.class);
+                staminaNotification.setAction(getString(R.string.intent_update_stamina));
+                startService(staminaNotification);
+            }
+
+            return;
+        }
+        catch (Exception e) {
+            Log.w(LOG_TAG, "Exception while parsing stamina from JSON.", e);
+        }
     }
 
     /**

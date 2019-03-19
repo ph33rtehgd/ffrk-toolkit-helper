@@ -140,22 +140,6 @@ public class ProxyAndDataFragment extends Fragment {
             }
         });
 
-        final Button resetOverlayBtn = getView().findViewById(R.id.reset_overlay_btn);
-        resetOverlayBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
-                prefs.edit().putInt("overlayX", 0)
-                        .putInt("overlayY", 150)
-                        .commit();
-
-                if (enableOverlaySwitch.isChecked()) {
-                    closeFloatingWindow();
-                    checkDrawOverlayPermission();
-                }
-            }
-        });
-
         final Button openWifiBtn = getView().findViewById(R.id.wifi_settings);
         openWifiBtn.setOnClickListener(new View.OnClickListener() {
             @Override
