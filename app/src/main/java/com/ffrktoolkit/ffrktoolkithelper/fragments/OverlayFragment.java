@@ -1,6 +1,9 @@
 package com.ffrktoolkit.ffrktoolkithelper.fragments;
 
 import android.annotation.TargetApi;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
@@ -18,10 +21,14 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.Spinner;
+import android.widget.Switch;
 
 import com.ffrktoolkit.ffrktoolkithelper.OverlayService;
 import com.ffrktoolkit.ffrktoolkithelper.R;
+import com.ffrktoolkit.ffrktoolkithelper.StaminaService;
+import com.ffrktoolkit.ffrktoolkithelper.receivers.BroadcastIntentReceiver;
 
 /**
  * This fragment shows general preferences only. It is used when the
@@ -54,8 +61,33 @@ public class OverlayFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-
         final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
+
+
+        final Switch enableStaminaTrackerSwift = getView().findViewById(R.id.enable_stamina_tracker_switch);
+        enableStaminaTrackerSwift.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
+                Intent staminaNotification = new Intent(getContext(), StaminaService.class);
+
+                if (isChecked) {
+                    prefs.edit().putBoolean("enableStaminaTracker", true).commit();
+                    staminaNotification.setAction(getString(R.string.intent_update_stamina));
+                    getContext().startService(staminaNotification);
+                }
+                else {
+                    prefs.edit().putBoolean("enableStaminaTracker", false).commit();
+                    PendingIntent staminaIntent = getStaminaNotificationIntent();
+                    AlarmManager alarmManager = (AlarmManager) getContext().getSystemService(Context.ALARM_SERVICE);
+                    alarmManager.cancel(staminaIntent);
+
+                    staminaNotification.setAction(getString(R.string.intent_stop_stamina_tracker));
+                    getContext().startService(staminaNotification);
+                }
+            }
+        });
+
         final Button resetOverlayBtn = getView().findViewById(R.id.reset_overlay_btn);
         resetOverlayBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -105,6 +137,12 @@ public class OverlayFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
+
+        final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        boolean isStaminaTrackerEnabled = prefs.getBoolean("enableStaminaTracker", false);
+
+        final Switch enableStaminaTrackerSwitch = getView().findViewById(R.id.enable_stamina_tracker_switch);
+        enableStaminaTrackerSwitch.setChecked(isStaminaTrackerEnabled);
     }
 
     @Override
@@ -169,6 +207,19 @@ public class OverlayFragment extends Fragment {
             Log.d(LOG_TAG, "Exception while finding overlay mode position, defaulting to 1.", e);
             return 1;
         }
+    }
+
+    private PendingIntent getStaminaNotificationIntent() {
+        Intent alarmIntent = new Intent(this.getContext(), BroadcastIntentReceiver.class);
+        alarmIntent.setAction(getString(R.string.intent_update_stamina));
+        PendingIntent alarmPendingIntent = PendingIntent.getBroadcast(
+                this.getContext(),
+                0,
+                alarmIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT
+        );
+
+        return alarmPendingIntent;
     }
 
 }

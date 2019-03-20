@@ -40,7 +40,7 @@
             </intent-filter>
         </activity>
 
-        <receiver android:enabled="false" android:name="com.ffrktoolkit.ffrktoolkithelper.receivers.BroadcastIntentReceiver">
+        <receiver android:enabled="true" android:name="com.ffrktoolkit.ffrktoolkithelper.receivers.BroadcastIntentReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
             </intent-filter>

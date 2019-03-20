@@ -12,10 +12,13 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.Handler;
+import android.os.Looper;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.Toast;
 
 import com.ffrktoolkit.ffrktoolkithelper.parser.InventoryParser;
 import com.ffrktoolkit.ffrktoolkithelper.util.DropUtils;
@@ -55,6 +58,8 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
     private String LOG_TAG = "FFRKToolkitHelper";
     private InventoryParser inventoryParser;
     private final static int PROXY_NOTIFICATION_ID = 176123744;
+    private Context appContext;
+    private Object lockObj = new Object();
 
     public ProxyService() {
         Log.d(LOG_TAG, "Service created.");
@@ -63,6 +68,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        appContext = getBaseContext();
         if (intent == null || intent.getAction() == null) {
             return START_STICKY;
         }
@@ -74,8 +80,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this.getApplicationContext());
                 prefs.edit().putBoolean("enableProxy", true).commit();
             }
-        }
-        else if (getString(R.string.intent_stop_proxy).equals(action)) {
+        } else if (getString(R.string.intent_stop_proxy).equals(action)) {
             if (this.server != null) {
                 Log.d(LOG_TAG, "Stopping proxy.");
                 this.server.abort();
@@ -95,8 +100,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 this.server = null;
                 this.stopSelf();
             }
-        }
-        else if (getString(R.string.intent_change_proxy_port).equals(action)) {
+        } else if (getString(R.string.intent_change_proxy_port).equals(action)) {
             if (this.server != null) {
                 Log.d(LOG_TAG, "Restarting proxy with new port.");
                 this.server.abort();
@@ -187,8 +191,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                                             String responseContent = response.content().toString(CharsetUtil.UTF_8);
                                             parseFfrkResponse(originalRequest.getUri(), responseContent);
                                             //Log.d(LOG_TAG, responseContent);
-                                        }
-                                        catch(Exception e) {
+                                        } catch (Exception e) {
                                             Log.e(LOG_TAG, "Exception while parsing response content.", e);
                                         }
                                     }
@@ -198,83 +201,78 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                             };
                         }
 
-                        public int getMaximumResponseBufferSizeInBytes()
-                        {
+                        public int getMaximumResponseBufferSizeInBytes() {
                             return 10485760;
                         }
                     })
                     .start();
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             Log.d(LOG_TAG, "Exception while trying to start proxy server.", e);
         }
     }
 
     private void parseFfrkResponse(String requestUri, String response) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
         try {
             if (requestUri.contains("/dff/party/list_buddy")) {
                 JSONObject json = new JSONObject(response);
                 parsePartyData(requestUri, json);
-            }
-            else if (requestUri.contains("/dff/party/list_equipment")) {
+            } else if (requestUri.contains("/dff/party/list_equipment")) {
                 JSONObject json = new JSONObject(response);
                 parseInventoryData("inventory", requestUri, json);
-            }
-            else if (requestUri.contains("/dff/party/list_other")) {
+            } else if (requestUri.contains("/dff/party/list_other")) {
                 JSONObject json = new JSONObject(response);
                 parseMaterialData(requestUri, json);
-            }
-            else if (requestUri.contains("/dff/party/list")) {
+            } else if (requestUri.contains("/dff/party/list")) {
                 JSONObject json = new JSONObject(response);
                 parsePartyData(requestUri, json);
                 parseInventoryData("inventory", requestUri, json);
                 parseStamina(json);
-            }
-            else if (requestUri.contains("/dff/warehouse/get_equipment_list")) {
+            } else if (requestUri.contains("/dff/warehouse/get_equipment_list")) {
                 JSONObject json = new JSONObject(response);
                 parseInventoryData("vault", requestUri, json);
-            }
-            else if (requestUri.contains("get_battle_init_data")) {
+            } else if (requestUri.contains("get_battle_init_data")) {
                 JSONObject json = new JSONObject(response);
                 parseBattleData(json);
-            }
-            else if (requestUri.contains("win_battle")) {
+            } else if (requestUri.contains("win_battle")) {
                 JSONObject json = new JSONObject(response);
                 parseStamina(json);
-            }
-            else if (requestUri.contains("escape_battle")) {
+            } else if (requestUri.contains("escape_battle")) {
                 JSONObject json = new JSONObject(response);
                 parseStamina(json);
-            }
-            else if (requestUri.contains("enter_multi")) {
+            } else if (requestUri.contains("enter_multi")) {
                 JSONObject json = new JSONObject(response);
                 parseStamina(json);
-            }
-            else if (requestUri.contains("enter_dungeon")) {
+            } else if (requestUri.contains("enter_dungeon")) {
                 JSONObject json = new JSONObject(response);
                 parseStamina(json);
-            }
-            else if (requestUri.contains("/dff/battle/escape") || requestUri.contains("/dff/battle/win")
+            } else if (requestUri.contains("/dff/battle/escape") || requestUri.contains("/dff/battle/win")
                     || requestUri.contains("/escape_battle") || requestUri.contains("/win_battle")) {
                 JSONObject json = new JSONObject(response);
                 parseStamina(json);
-            }
-            else if (requestUri.endsWith("/dungeons") || requestUri.contains("/dungeons?world_id")) {
+            } else if (requestUri.endsWith("/dungeons") || requestUri.contains("/dungeons?world_id")) {
+                JSONObject json = new JSONObject(response);
+                parseStamina(json);
+            } else if (requestUri.endsWith("/battles")) {
                 JSONObject json = new JSONObject(response);
                 parseStamina(json);
             }
-            else if (requestUri.endsWith("/battles")) {
-                JSONObject json = new JSONObject(response);
-                parseStamina(json);
+        } catch (Exception e) {
+            Log.e(LOG_TAG, "Exception while parsing FFRK response.", e);
+            if (isDebugEnabled) {
+                showToast("Exception occurred while processing " + requestUri);
             }
-
-        }
-        catch (Exception e) {
-            Log.e(LOG_TAG, "Exception while parsing FFRK response." ,e);
         }
     }
 
     private void parsePartyData(String requestUri, JSONObject json) throws JSONException {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
+        if (isDebugEnabled) {
+            //showToast("Parsing soulbreaks/legend materia from " + requestUri);
+        }
+
         JSONArray soulbreaks = json.getJSONArray("soul_strikes");
         JSONArray legendMateria = json.getJSONArray("legend_materias");
 
@@ -288,7 +286,6 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             String region = isGlobalUrl(requestUri) ? "global" : "japan";
             String fileName = isGlobalUrl(requestUri) ? getString(R.string.file_inventory_global_json) : getString(R.string.file_inventory_jp_json);
             File file = new File(getApplicationContext().getFilesDir(), fileName);
-            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
 
             if (file.exists()) {
                 FileInputStream inputStream = new FileInputStream(file);
@@ -301,12 +298,10 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 if (hasInventoryChanged) {
                     prefs.edit().putBoolean("hasInventoryChanged_" + region, true).commit();
                 }
-            }
-            else {
+            } else {
                 prefs.edit().putBoolean("hasInventoryChanged_" + region, true).commit();
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             Log.w(LOG_TAG, "Exception while parsing existing inventory, ignoring.", e);
         }
 
@@ -325,6 +320,12 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
     }
 
     private void parseInventoryData(String inventoryType, String requestUri, JSONObject json) throws JSONException {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
+        if (isDebugEnabled) {
+            showToast("Parsing inventory from " + requestUri);
+        }
+
         JSONArray equipments = json.getJSONArray("equipments");
 
         JSONObject filteredResponse = new JSONObject();
@@ -346,15 +347,13 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         String fileName = null;
         if ("inventory".equals(inventoryType)) {
             fileName = isGlobalUrl(requestUri) ? getString(R.string.file_equipment_global_json) : getString(R.string.file_equipment_jp_json);
-        }
-        else if ("vault".equals(inventoryType)) {
+        } else if ("vault".equals(inventoryType)) {
             fileName = isGlobalUrl(requestUri) ? getString(R.string.file_vault_global_json) : getString(R.string.file_vault_jp_json);
         }
 
         try {
             String region = isGlobalUrl(requestUri) ? "global" : "japan";
             File file = new File(getApplicationContext().getFilesDir(), fileName);
-            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
 
             if (file.exists()) {
                 FileInputStream inputStream = new FileInputStream(file);
@@ -367,12 +366,10 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 if (hasInventoryChanged) {
                     prefs.edit().putBoolean("hasInventoryChanged_" + region, true).commit();
                 }
-            }
-            else {
+            } else {
                 prefs.edit().putBoolean("hasInventoryChanged_" + region, true).commit();
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             Log.w(LOG_TAG, "Exception while parsing existing inventory, ignoring.", e);
         }
 
@@ -390,6 +387,12 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
     }
 
     private void parseMaterialData(String requestUri, JSONObject json) throws JSONException {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
+        if (isDebugEnabled) {
+            //showToast("Parsing material data from " + requestUri);
+        }
+
         JSONArray materials = json.getJSONArray("materials");
 
         JSONObject filteredJson = new JSONObject();
@@ -401,7 +404,6 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             String region = isGlobalUrl(requestUri) ? "global" : "japan";
             String fileName = isGlobalUrl(requestUri) ? getString(R.string.file_materials_global_json) : getString(R.string.file_materials_jp_json);
             File file = new File(getApplicationContext().getFilesDir(), fileName);
-            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
 
             if (file.exists()) {
                 FileInputStream inputStream = new FileInputStream(file);
@@ -414,14 +416,12 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 if (hasInventoryChanged && "global".equals(region)) {
                     prefs.edit().putBoolean("hasInventoryChanged_" + region, true).commit();
                 }
-            }
-            else {
+            } else {
                 if ("global".equals(region)) {
                     prefs.edit().putBoolean("hasInventoryChanged_" + region, true).commit();
                 }
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             Log.w(LOG_TAG, "Exception while parsing existing inventory, ignoring.", e);
         }
 
@@ -478,8 +478,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                         int rarity2 = Integer.parseInt(r2);
 
                         return (rarity1 - rarity2) * -1;
-                    }
-                    catch (Exception e) {
+                    } catch (Exception e) {
                         return 1;
                     }
                 }
@@ -490,8 +489,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             Intent dropsIntent = new Intent(this.getApplicationContext(), OverlayService.class);
             dropsIntent.putStringArrayListExtra("drops", dropTexts);
             getApplicationContext().startService(dropsIntent);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             Log.w(LOG_TAG, "Exception while parsing battle data.", e);
         }
     }
@@ -510,8 +508,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 String dropName = DropUtils.getDropName(itemId);
                 mapKey = rarity + "\u2605 " + dropName;
                 quantity = dropMap.get(mapKey);
-            }
-            else {
+            } else {
                 String stringType = String.valueOf(type);
 
                 if (type == 11) {
@@ -548,8 +545,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             String dropText = null;
             if (dropName.equalsIgnoreCase("gil")) {
                 dropText = quantity + " " + dropName;
-            }
-            else {
+            } else {
                 dropText = dropName + " (" + quantity + ")";
             }
 
@@ -565,7 +561,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         Intent intent = new Intent(getApplicationContext(), ProxyService.class);
         intent.setAction(getString(R.string.intent_stop_proxy));
 
-        int random = (int)System.nanoTime();
+        int random = (int) System.nanoTime();
         PendingIntent stopProxyIntent = PendingIntent.getService(
                 getApplicationContext(),
                 random,
@@ -573,7 +569,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 PendingIntent.FLAG_UPDATE_CURRENT
         );
 
-        random = (int)System.nanoTime();
+        random = (int) System.nanoTime();
         Intent overlayIntent = new Intent(getApplicationContext(), OverlayService.class);
         overlayIntent.setAction("showOverlay");
         PendingIntent startOverlayIntent = PendingIntent.getService(
@@ -583,7 +579,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 PendingIntent.FLAG_UPDATE_CURRENT
         );
 
-        random = (int)System.nanoTime();
+        random = (int) System.nanoTime();
         Intent settingsIntent = new Intent(getApplicationContext(), FFRKToolkitHelperActivity.class);
         PendingIntent settingsPendingIntent = PendingIntent.getActivity(
                 getApplicationContext(),
@@ -622,11 +618,9 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         return url != null && url.contains("ffrk.denagames.com");
     }
 
-    private void parseStamina(JSONObject json)
-    {
+    private void parseStamina(JSONObject json) {
         SharedPreferences.Editor prefsEditor = PreferenceManager.getDefaultSharedPreferences(this).edit();
-        try
-        {
+        try {
             Log.d(LOG_TAG, "Inside parse stamina");
             JSONObject user = json.optJSONObject("user");
             if (user != null) {
@@ -651,8 +645,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             }
 
             return;
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             Log.w(LOG_TAG, "Exception while parsing stamina from JSON.", e);
         }
     }
@@ -668,4 +661,16 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         }
     }
 
+    //Use this method to show toast
+    private void showToast(final String toastMessage) {
+        if (null != appContext) {
+            Handler handler = new Handler(Looper.getMainLooper());
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(appContext, toastMessage, Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+    }
 }

@@ -24,7 +24,7 @@ public class StaminaService extends IntentService {
 
     private String LOG_TAG = "FFRKToolkitHelper";
 
-    private long REFRESH_INTERVAL = 900000L;
+    private long REFRESH_INTERVAL = 180000L;
 
     private final static int STAMINA_NOTIFICATION_ID = 176123745;
 
@@ -34,12 +34,28 @@ public class StaminaService extends IntentService {
 
     @Override
     protected void onHandleIntent(Intent intent) {
-        if (!getString(R.string.intent_update_stamina).equalsIgnoreCase(intent.getAction())) {
-            Log.d(LOG_TAG, "Received invalid intent action for stamina service: " + intent.getAction());
-            return;
+        if (getString(R.string.intent_update_stamina).equalsIgnoreCase(intent.getAction())) {
+            updateNotification();
         }
+        else if (getString(R.string.intent_stop_stamina_tracker).equalsIgnoreCase(intent.getAction())) {
+            Log.d(LOG_TAG, "Cancel stamina tracker alarm");
+            NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            notificationManager.cancel(StaminaService.STAMINA_NOTIFICATION_ID);
 
-        updateNotification();
+            AlarmManager alarmManager = (AlarmManager)this.getSystemService(Context.ALARM_SERVICE);
+            Intent alarmIntent = new Intent(this, BroadcastIntentReceiver.class);
+            alarmIntent.setAction(getString(R.string.intent_stop_stamina_tracker));
+            PendingIntent alarmPendingIntent = PendingIntent.getBroadcast(
+                    getApplicationContext(),
+                    0,
+                    alarmIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT
+            );
+            alarmManager.cancel(alarmPendingIntent);
+        }
+        else {
+            Log.d(LOG_TAG, "Received invalid intent action for stamina service: " + intent.getAction());
+        }
     }
 
     private void updateNotification() {
@@ -60,16 +76,17 @@ public class StaminaService extends IntentService {
         long currentSeconds = (int)(System.currentTimeMillis() / 1000L);
         int secondsRemaining = staminaRecoveryRemainingTime - (int) (currentSeconds - serverTime);
         if (secondsRemaining < 0) {
+            secondsRemaining = 0;
             staminaRecoveryRemainingTime = 0;
         }
-        currentStamina = maxStamina - (int) Math.ceil((double) secondsRemaining / (double) staminaRecoveryTime);
+        currentStamina = Math.min(maxStamina - (int) Math.ceil((double) secondsRemaining / (double) staminaRecoveryTime), maxStamina);
 
         //Log.d(LOG_TAG, "Seconds missing: " + secondsRemaining);
         //Log.d(LOG_TAG, "Recovery missing: " + staminaRecoveryTime);
         //Log.d(LOG_TAG, "Stamina missing: " + (int) Math.ceil((double) secondsRemaining / (double) staminaRecoveryTime));
 
-        String timeRemainingToFull = String.format("%d:%02d:%02d", new Object[] { Integer.valueOf(staminaRecoveryRemainingTime / 3600), Integer.valueOf(staminaRecoveryRemainingTime % 3600 / 60), Integer.valueOf(staminaRecoveryRemainingTime % 60) });
-        String timeFullyRecovered = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date((currentSeconds + staminaRecoveryRemainingTime) * 1000L));
+        String timeRemainingToFull = String.format("%d:%02d:%02d", new Object[] { Integer.valueOf(secondsRemaining / 3600), Integer.valueOf(secondsRemaining % 3600 / 60), Integer.valueOf(secondsRemaining % 60) });
+        String timeFullyRecovered = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date((currentSeconds + secondsRemaining) * 1000L));
         Notification.Builder notification = new Notification.Builder(this.getApplicationContext())
                 .setSmallIcon(R.drawable.ic_proxy_notification_icon)
                 .setContentTitle(String.format(getString(R.string.stamina_notification_current), new Object[] { currentStamina, maxStamina } ))
@@ -79,36 +96,61 @@ public class StaminaService extends IntentService {
         Log.d(LOG_TAG, timeRemainingToFull);
         Log.d(LOG_TAG, timeFullyRecovered);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            Log.d(LOG_TAG, "Current: " + currentSeconds);
-            Log.d(LOG_TAG, "Remaning: " + secondsRemaining);
-            Log.d(LOG_TAG, "When: " + (currentSeconds + secondsRemaining) * 1000);
-
+        if (currentStamina >= maxStamina) {
             notification
-                    .setWhen((currentSeconds + secondsRemaining) * 1000)  // the time stamp, you will probably use System.currentTimeMillis() for most scenario
-                    .setShowWhen(true)
-                    .setContentText(String.format(getString(R.string.stamina_notification_time_left_24), new Object[] { timeFullyRecovered } ))
-                    .setUsesChronometer(true)
-                    .setOnlyAlertOnce(true)
-                    .setChronometerCountDown(true);
+                    .setContentText(getString(R.string.stamina_restored))
+                    .setOnlyAlertOnce(true);
         }
         else {
-            notification.setContentText(String.format(getString(R.string.stamina_notification_time_left), new Object[] { timeRemainingToFull, timeFullyRecovered } ));
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                Log.d(LOG_TAG, "Current: " + currentSeconds);
+                Log.d(LOG_TAG, "Remaining: " + secondsRemaining);
+                Log.d(LOG_TAG, "When: " + (currentSeconds + secondsRemaining) * 1000);
 
-            AlarmManager alarmManager = (AlarmManager)this.getSystemService(Context.ALARM_SERVICE);
-            Intent alarmIntent = new Intent(this, StaminaService.class);
-            alarmIntent.setAction(getString(R.string.intent_update_stamina));
-            startService(alarmIntent);
+                notification
+                        .setWhen((currentSeconds + secondsRemaining) * 1000)  // the time stamp, you will probably use System.currentTimeMillis() for most scenario
+                        .setShowWhen(true)
+                        .setContentText(String.format(getString(R.string.stamina_notification_time_left_24), new Object[] { timeFullyRecovered } ))
+                        .setUsesChronometer(true)
+                        .setOnlyAlertOnce(true)
+                        .setChronometerCountDown(true);
+            }
+            else {
+                notification.setContentText(String.format(getString(R.string.stamina_notification_time_left), new Object[] { timeRemainingToFull, timeFullyRecovered } ));
+            }
+        }
 
-            PendingIntent alarmPendingIntent = PendingIntent.getActivity(
+        long millisUntilNextStaminaTick = (secondsRemaining % staminaRecoveryTime) * 1000;
+        AlarmManager alarmManager = (AlarmManager)this.getSystemService(Context.ALARM_SERVICE);
+        Intent alarmIntent = new Intent(this, BroadcastIntentReceiver.class);
+        alarmIntent.setAction(getString(R.string.intent_update_stamina));
+
+        PendingIntent existingAlarm = PendingIntent.getBroadcast(getApplicationContext(), 0, alarmIntent, PendingIntent.FLAG_NO_CREATE);
+        boolean isAlarmSet = existingAlarm != null;
+        if (!isAlarmSet) {
+            Log.d(LOG_TAG, "Alarm is not set.");
+            //startService(alarmIntent);
+            PendingIntent alarmPendingIntent = PendingIntent.getBroadcast(
                     getApplicationContext(),
-                    random,
+                    0,
                     alarmIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT
             );
 
-            alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime(), REFRESH_INTERVAL, alarmPendingIntent);
+            alarmManager.setRepeating(AlarmManager.ELAPSED_REALTIME, (SystemClock.elapsedRealtime() + millisUntilNextStaminaTick), REFRESH_INTERVAL, alarmPendingIntent);
+            Log.d(LOG_TAG, "next alarm: " + (SystemClock.elapsedRealtime() + millisUntilNextStaminaTick));
+            Log.d(LOG_TAG, "current clock: " + SystemClock.elapsedRealtime());
         }
+        else {
+            Log.d(LOG_TAG, "Alarm is set: " + existingAlarm);
+            if (currentStamina >= maxStamina) {
+                alarmManager.cancel(existingAlarm);
+                Log.d(LOG_TAG, "Cancel stamina refresh alarm, stamina is full.");
+            }
+        }
+
+        Log.d(LOG_TAG, "Extra millis: " + millisUntilNextStaminaTick);
+        Log.d(LOG_TAG, "Refresh interval" + REFRESH_INTERVAL);
 
         random = (int)System.nanoTime();
         Intent settingsIntent = new Intent(getApplicationContext(), FFRKToolkitHelperActivity.class);
@@ -130,6 +172,5 @@ public class StaminaService extends IntentService {
         }
 
         notificationManager.notify(StaminaService.STAMINA_NOTIFICATION_ID, notification.build());
-        //startForeground(StaminaService.STAMINA_NOTIFICATION_ID, notification.build());
     }
 }

@@ -1,6 +1,8 @@
 package com.ffrktoolkit.ffrktoolkithelper.fragments;
 
 import android.annotation.TargetApi;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
@@ -136,6 +138,20 @@ public class ProxyAndDataFragment extends Fragment {
                 else {
                     closeFloatingWindow();
                     prefs.edit().putBoolean("enableOverlay", false).commit();
+                }
+            }
+        });
+
+        final Switch enableDebugSwitch = getView().findViewById(R.id.enable_debug_switch);
+        enableDebugSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
+                if (isChecked) {
+                    prefs.edit().putBoolean("enableDebugToasts", true).commit();
+                }
+                else {
+                    prefs.edit().putBoolean("enableDebugToasts", false).commit();
                 }
             }
         });
@@ -306,6 +322,10 @@ public class ProxyAndDataFragment extends Fragment {
         if (isOverlayEnabled) {
             checkDrawOverlayPermission();
         }
+
+        boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
+        final Switch enableDebugToasts = (Switch) getView().findViewById(R.id.enable_debug_switch);
+        enableDebugToasts.setChecked(isDebugEnabled);
 
         final EditText proxyPortText = (EditText) getView().findViewById(R.id.proxy_port);
         int proxyPort = prefs.getInt("proxyPort", Integer.valueOf(getString(R.string.default_proxy_port)));
@@ -908,4 +928,5 @@ public class ProxyAndDataFragment extends Fragment {
             Log.w(LOG_TAG, "Exception while parsing data maps.", e);
         }
     }
+
 }
