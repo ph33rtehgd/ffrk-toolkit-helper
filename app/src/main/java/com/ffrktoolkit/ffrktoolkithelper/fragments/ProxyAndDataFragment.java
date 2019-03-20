@@ -1,8 +1,6 @@
 package com.ffrktoolkit.ffrktoolkithelper.fragments;
 
 import android.annotation.TargetApi;
-import android.app.AlarmManager;
-import android.app.PendingIntent;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
@@ -41,6 +39,7 @@ import com.android.volley.Request;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
+import com.crashlytics.android.Crashlytics;
 import com.ffrktoolkit.ffrktoolkithelper.OverlayService;
 import com.ffrktoolkit.ffrktoolkithelper.ProxyService;
 import com.ffrktoolkit.ffrktoolkithelper.R;
@@ -142,7 +141,7 @@ public class ProxyAndDataFragment extends Fragment {
             }
         });
 
-        final Switch enableDebugSwitch = getView().findViewById(R.id.enable_debug_switch);
+        /*final Switch enableDebugSwitch = getView().findViewById(R.id.enable_debug_switch);
         enableDebugSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -154,7 +153,7 @@ public class ProxyAndDataFragment extends Fragment {
                     prefs.edit().putBoolean("enableDebugToasts", false).commit();
                 }
             }
-        });
+        });*/
 
         final Button openWifiBtn = getView().findViewById(R.id.wifi_settings);
         openWifiBtn.setOnClickListener(new View.OnClickListener() {
@@ -323,9 +322,9 @@ public class ProxyAndDataFragment extends Fragment {
             checkDrawOverlayPermission();
         }
 
-        boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
+        /*boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
         final Switch enableDebugToasts = (Switch) getView().findViewById(R.id.enable_debug_switch);
-        enableDebugToasts.setChecked(isDebugEnabled);
+        enableDebugToasts.setChecked(isDebugEnabled);*/
 
         final EditText proxyPortText = (EditText) getView().findViewById(R.id.proxy_port);
         int proxyPort = prefs.getInt("proxyPort", Integer.valueOf(getString(R.string.default_proxy_port)));
@@ -365,11 +364,15 @@ public class ProxyAndDataFragment extends Fragment {
 
             final Button submitInventoryBtn = (Button) this.getActivity().findViewById(R.id.submit_inventory_btn);
             submitInventoryBtn.setEnabled(true);
+
+            Crashlytics.setUserEmail(account.getEmail());
+            Crashlytics.setUserIdentifier(account.getId());
         } catch (ApiException e) {
             // The ApiException status code indicates the detailed failure reason.
             // Please refer to the GoogleSignInStatusCodes class reference for more information.
-            Log.w(LOG_TAG, "signInResult:failed code=" + e.getStatusCode());
-            Log.w(LOG_TAG, e.getMessage());
+            Crashlytics.log(Log.WARN, LOG_TAG, "signInResult:failed code=" + e.getStatusCode());
+            Crashlytics.log(Log.WARN, LOG_TAG, e.getMessage());
+            Crashlytics.logException(e);
         }
     }
 
@@ -561,7 +564,8 @@ public class ProxyAndDataFragment extends Fragment {
                 }
                 catch (Exception e) {
                     hideProgressWhenComplete(progress);
-                    Log.w(LOG_TAG, "Exception while parsing inventory relic JSON.", e);
+                    Crashlytics.log(Log.WARN, LOG_TAG, "Exception while parsing inventory relic JSON.");
+                    Crashlytics.logException(e);
                 }
             }
             else {
@@ -584,7 +588,8 @@ public class ProxyAndDataFragment extends Fragment {
                 }
                 catch (Exception e) {
                     hideProgressWhenComplete(progress);
-                    Log.w(LOG_TAG, "Exception while parsing inventory relic JSON.", e);
+                    Crashlytics.log(Log.WARN, LOG_TAG, "Exception while parsing inventory relic JSON.");
+                    Crashlytics.logException(e);
                 }
             }
             else {
@@ -602,7 +607,8 @@ public class ProxyAndDataFragment extends Fragment {
                     callSaveMaterialInventory(account, transformedJson.toString(), region, progress);
                 }
                 catch (Exception e) {
-                    Log.d(LOG_TAG, "Exception while parsing material inventory to send.", e);
+                    Crashlytics.log(Log.DEBUG, LOG_TAG, "Exception while parsing material inventory to send.");
+                    Crashlytics.logException(e);
                 }
             }
             else {
@@ -640,7 +646,8 @@ public class ProxyAndDataFragment extends Fragment {
                         }
                         catch (JSONException e) {
                             hideProgressWhenComplete(progress);
-                            Log.w(LOG_TAG,"Exception while parsing inventory JSON", e);
+                            Crashlytics.log(Log.WARN, LOG_TAG,"Exception while parsing inventory JSON");
+                            Crashlytics.logException(e);
                             return;
                         }
                     }
@@ -650,7 +657,8 @@ public class ProxyAndDataFragment extends Fragment {
                     public void onErrorResponse(VolleyError error) {
                         hideProgressWhenComplete(progress);
                         hideProgressWhenComplete(progress);
-                        Log.e(LOG_TAG, "Error in response: " + error.toString());
+                        Crashlytics.log(Log.ERROR, LOG_TAG, "Error in response: " + error.toString());
+                        Crashlytics.logException(error);
                         Toast toast = Toast.makeText(getActivity().getApplicationContext(), getString(R.string.exception_loading_inventory), Toast.LENGTH_SHORT);
                         toast.show();
                     }
@@ -692,7 +700,9 @@ public class ProxyAndDataFragment extends Fragment {
                     @Override
                     public void onErrorResponse(VolleyError error) {
                         progress.cancel();
-                        Log.e(LOG_TAG, "Error in response: " + error.toString());
+                        Crashlytics.log(Log.ERROR, LOG_TAG, "Error in response: " + error.toString());
+                        Crashlytics.logException(error);
+
                         Toast toast = Toast.makeText(getActivity().getApplicationContext(), getString(R.string.exception_saving_inventory), Toast.LENGTH_SHORT);
                         toast.show();
                     }
@@ -743,7 +753,9 @@ public class ProxyAndDataFragment extends Fragment {
                         @Override
                         public void onErrorResponse(VolleyError error) {
                             hideProgressWhenComplete(progress);
-                            Log.e(LOG_TAG, "Error in response: " + error.toString());
+                            Crashlytics.log(Log.ERROR, LOG_TAG, "Error in response: " + error.toString());
+                            Crashlytics.logException(error);
+
                             Toast toast = Toast.makeText(getActivity().getApplicationContext(), getString(R.string.exception_saving_inventory), Toast.LENGTH_SHORT);
                             toast.show();
                         }
@@ -773,7 +785,8 @@ public class ProxyAndDataFragment extends Fragment {
             HttpRequestSingleton.getInstance(getActivity()).addToRequestQueue(saveInventoryRequest);
         }
         catch (Throwable e){
-            Log.e(LOG_TAG, "Exception while sending relic inventory.", e);
+            Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while sending relic inventory.");
+            Crashlytics.logException(e);
         }
     }
 
@@ -797,7 +810,8 @@ public class ProxyAndDataFragment extends Fragment {
                         @Override
                         public void onErrorResponse(VolleyError error) {
                             hideProgressWhenComplete(progress);
-                            Log.e(LOG_TAG, "Error in response: " + error.toString());
+                            Crashlytics.log(Log.ERROR, LOG_TAG, "Error in response: " + error.toString());
+                            Crashlytics.logException(error);
                             Toast toast = Toast.makeText(getActivity().getApplicationContext(), getString(R.string.exception_saving_inventory), Toast.LENGTH_SHORT);
                             toast.show();
                         }
@@ -827,7 +841,8 @@ public class ProxyAndDataFragment extends Fragment {
             HttpRequestSingleton.getInstance(getActivity()).addToRequestQueue(saveInventoryRequest);
         }
         catch (Throwable e){
-            Log.e(LOG_TAG, "Exception while sending material inventory.", e);
+            Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while sending material inventory.");
+            Crashlytics.logException(e);
         }
     }
 
@@ -879,7 +894,8 @@ public class ProxyAndDataFragment extends Fragment {
                                     outputStream.close();
                                     updateDataMaps();
                                 } catch (Exception e) {
-                                    Log.e(LOG_TAG, "Exception while writing data map json to storage.", e);
+                                    Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while writing data map json to storage.");
+                                    Crashlytics.logException(e);
                                     return;
                                 }
                             }
@@ -888,14 +904,16 @@ public class ProxyAndDataFragment extends Fragment {
 
                         @Override
                         public void onErrorResponse(VolleyError error) {
-                            Log.e(LOG_TAG, "Error in response: " + error.toString());
+                            Crashlytics.log(Log.ERROR, LOG_TAG, "Error in response: " + error.toString());
+                            Crashlytics.logException(error);
                         }
                     });
 
             HttpRequestSingleton.getInstance(getActivity()).addToRequestQueue(updateMapsRequest);
         }
         catch (Throwable e){
-            Log.e(LOG_TAG, "Exception while sending relic inventory.", e);
+            Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while sending relic inventory.");
+            Crashlytics.logException(e);
         }
     }
 
@@ -925,7 +943,8 @@ public class ProxyAndDataFragment extends Fragment {
             }
         }
         catch (Exception e) {
-            Log.w(LOG_TAG, "Exception while parsing data maps.", e);
+            Crashlytics.log(Log.WARN, LOG_TAG, "Exception while parsing data maps.");
+            Crashlytics.logException(e);
         }
     }
 

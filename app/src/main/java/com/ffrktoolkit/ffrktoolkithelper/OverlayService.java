@@ -57,6 +57,11 @@ public class OverlayService extends Service {
         mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         final String overlayMode = prefs.getString("overlay_mode", "dynamic");
+        final boolean isOverlayEnabled = prefs.getBoolean("enableOverlay", false);
+
+        if (!isOverlayEnabled) {
+            return super.onStartCommand(intent, flags, startId);
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!Settings.canDrawOverlays(this)) {

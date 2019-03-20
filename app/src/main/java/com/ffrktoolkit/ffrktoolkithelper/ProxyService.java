@@ -20,6 +20,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Toast;
 
+import com.crashlytics.android.Crashlytics;
 import com.ffrktoolkit.ffrktoolkithelper.parser.InventoryParser;
 import com.ffrktoolkit.ffrktoolkithelper.util.DropUtils;
 
@@ -58,8 +59,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
     private String LOG_TAG = "FFRKToolkitHelper";
     private InventoryParser inventoryParser;
     private final static int PROXY_NOTIFICATION_ID = 176123744;
-    private Context appContext;
-    private Object lockObj = new Object();
+    //private Context appContext;
 
     public ProxyService() {
         Log.d(LOG_TAG, "Service created.");
@@ -68,7 +68,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        appContext = getBaseContext();
+        //appContext = getBaseContext();
         if (intent == null || intent.getAction() == null) {
             return START_STICKY;
         }
@@ -192,7 +192,8 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                                             parseFfrkResponse(originalRequest.getUri(), responseContent);
                                             //Log.d(LOG_TAG, responseContent);
                                         } catch (Exception e) {
-                                            Log.e(LOG_TAG, "Exception while parsing response content.", e);
+                                            Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while parsing response content.");
+                                            Crashlytics.logException(e);
                                         }
                                     }
 
@@ -207,13 +208,14 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                     })
                     .start();
         } catch (Exception e) {
-            Log.d(LOG_TAG, "Exception while trying to start proxy server.", e);
+            Crashlytics.log(Log.DEBUG, LOG_TAG, "Exception while trying to start proxy server.");
+            Crashlytics.logException(e);
         }
     }
 
     private void parseFfrkResponse(String requestUri, String response) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
-        boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
+        //boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
         try {
             if (requestUri.contains("/dff/party/list_buddy")) {
                 JSONObject json = new JSONObject(response);
@@ -259,19 +261,18 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 parseStamina(json);
             }
         } catch (Exception e) {
-            Log.e(LOG_TAG, "Exception while parsing FFRK response.", e);
-            if (isDebugEnabled) {
-                showToast("Exception occurred while processing " + requestUri);
-            }
+            Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while parsing FFRK response.");
+            Crashlytics.logException(e);
         }
     }
 
     private void parsePartyData(String requestUri, JSONObject json) throws JSONException {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
-        boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
+        /*boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
+        Crashlytics.log("Parsing soulbreaks/legend materia from " + requestUri);
         if (isDebugEnabled) {
-            //showToast("Parsing soulbreaks/legend materia from " + requestUri);
-        }
+            Crashlytics.logException(new RuntimeException("Logging parsePartyData"));
+        }*/
 
         JSONArray soulbreaks = json.getJSONArray("soul_strikes");
         JSONArray legendMateria = json.getJSONArray("legend_materias");
@@ -303,6 +304,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             }
         } catch (Exception e) {
             Log.w(LOG_TAG, "Exception while parsing existing inventory, ignoring.", e);
+            Crashlytics.logException(e);
         }
 
         FileOutputStream outputStream;
@@ -313,6 +315,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             outputStream.close();
         } catch (Exception e) {
             Log.e(LOG_TAG, "Exception while writing inventory json to storage.", e);
+            Crashlytics.logException(e);
             return;
         }
 
@@ -321,13 +324,13 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
 
     private void parseInventoryData(String inventoryType, String requestUri, JSONObject json) throws JSONException {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
-        boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
+        /*boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
+        Crashlytics.log("Parsing inventory from " + requestUri);
         if (isDebugEnabled) {
-            showToast("Parsing inventory from " + requestUri);
-        }
+            Crashlytics.logException(new RuntimeException("Logging parseInventoryData"));
+        }*/
 
         JSONArray equipments = json.getJSONArray("equipments");
-
         JSONObject filteredResponse = new JSONObject();
         filteredResponse.put("equipments", equipments);
 
@@ -370,7 +373,8 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 prefs.edit().putBoolean("hasInventoryChanged_" + region, true).commit();
             }
         } catch (Exception e) {
-            Log.w(LOG_TAG, "Exception while parsing existing inventory, ignoring.", e);
+            Crashlytics.log(Log.WARN, LOG_TAG, "Exception while parsing existing inventory, ignoring.");
+            Crashlytics.logException(e);
         }
 
         FileOutputStream outputStream;
@@ -379,7 +383,8 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             outputStream.write(filteredResponse.toString().getBytes());
             outputStream.close();
         } catch (Exception e) {
-            Log.e(LOG_TAG, "Exception while writing inventory json to storage.", e);
+            Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while writing inventory json to storage.");
+            Crashlytics.logException(e);
             return;
         }
 
@@ -388,13 +393,13 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
 
     private void parseMaterialData(String requestUri, JSONObject json) throws JSONException {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
-        boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
+        /*boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
+        Crashlytics.log("Parsing material data from " + requestUri);
         if (isDebugEnabled) {
-            //showToast("Parsing material data from " + requestUri);
-        }
+            Crashlytics.logException(new RuntimeException("Logging parseMaterialData"));
+        }*/
 
         JSONArray materials = json.getJSONArray("materials");
-
         JSONObject filteredJson = new JSONObject();
         filteredJson.put("materials", materials);
 
@@ -422,7 +427,8 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 }
             }
         } catch (Exception e) {
-            Log.w(LOG_TAG, "Exception while parsing existing inventory, ignoring.", e);
+            Crashlytics.log(Log.WARN, LOG_TAG, "Exception while parsing existing inventory, ignoring.");
+            Crashlytics.logException(e);
         }
 
         FileOutputStream outputStream;
@@ -432,7 +438,8 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             outputStream.write(filteredJson.toString().getBytes());
             outputStream.close();
         } catch (Exception e) {
-            Log.e(LOG_TAG, "Exception while writing inventory json to storage.", e);
+            Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while writing inventory json to storage.");
+            Crashlytics.logException(e);
             return;
         }
 
@@ -466,7 +473,6 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 }
             }
 
-
             Collections.sort(drops, new Comparator<JSONObject>() {
                 @Override
                 public int compare(JSONObject d1, JSONObject d2) {
@@ -490,7 +496,8 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             dropsIntent.putStringArrayListExtra("drops", dropTexts);
             getApplicationContext().startService(dropsIntent);
         } catch (Exception e) {
-            Log.w(LOG_TAG, "Exception while parsing battle data.", e);
+            Crashlytics.log(Log.WARN, LOG_TAG, "Exception while parsing battle data.");
+            Crashlytics.logException(e);
         }
     }
 
@@ -619,7 +626,9 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
     }
 
     private void parseStamina(JSONObject json) {
-        SharedPreferences.Editor prefsEditor = PreferenceManager.getDefaultSharedPreferences(this).edit();
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        SharedPreferences.Editor prefsEditor = sharedPreferences.edit();
+        final boolean isStaminaNotificationEnabled = sharedPreferences.getBoolean("enableStaminaTracker", false);
         try {
             Log.d(LOG_TAG, "Inside parse stamina");
             JSONObject user = json.optJSONObject("user");
@@ -639,14 +648,17 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 prefsEditor.putInt("staminaRecoveryTime", recoveryTime);
                 prefsEditor.commit();
 
-                Intent staminaNotification = new Intent(getApplicationContext(), StaminaService.class);
-                staminaNotification.setAction(getString(R.string.intent_update_stamina));
-                startService(staminaNotification);
+                if (isStaminaNotificationEnabled) {
+                    Intent staminaNotification = new Intent(getApplicationContext(), StaminaService.class);
+                    staminaNotification.setAction(getString(R.string.intent_update_stamina));
+                    startService(staminaNotification);
+                }
             }
 
             return;
         } catch (Exception e) {
             Log.w(LOG_TAG, "Exception while parsing stamina from JSON.", e);
+            Crashlytics.logException(e);
         }
     }
 
@@ -662,7 +674,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
     }
 
     //Use this method to show toast
-    private void showToast(final String toastMessage) {
+    /*private void showToast(final String toastMessage) {
         if (null != appContext) {
             Handler handler = new Handler(Looper.getMainLooper());
             handler.post(new Runnable() {
@@ -672,5 +684,5 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 }
             });
         }
-    }
+    }*/
 }

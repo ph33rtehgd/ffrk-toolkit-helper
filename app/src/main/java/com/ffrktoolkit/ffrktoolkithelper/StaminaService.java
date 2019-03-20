@@ -35,7 +35,11 @@ public class StaminaService extends IntentService {
     @Override
     protected void onHandleIntent(Intent intent) {
         if (getString(R.string.intent_update_stamina).equalsIgnoreCase(intent.getAction())) {
-            updateNotification();
+            final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+            final boolean isStaminaNotificationEnabled = sharedPreferences.getBoolean("enableStaminaTracker", false);
+            if (isStaminaNotificationEnabled) {
+                updateNotification();
+            }
         }
         else if (getString(R.string.intent_stop_stamina_tracker).equalsIgnoreCase(intent.getAction())) {
             Log.d(LOG_TAG, "Cancel stamina tracker alarm");
