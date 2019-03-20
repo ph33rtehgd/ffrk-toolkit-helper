@@ -259,6 +259,9 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             } else if (requestUri.endsWith("/battles")) {
                 JSONObject json = new JSONObject(response);
                 parseStamina(json);
+            } else if (requestUri.endsWith("/recover_stamina")) {
+                JSONObject json = new JSONObject(response);
+                parseStamina(json);
             }
         } catch (Exception e) {
             Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while parsing FFRK response.");
