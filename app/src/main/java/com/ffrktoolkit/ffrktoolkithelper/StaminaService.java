@@ -177,8 +177,15 @@ public class StaminaService extends Service {
 
         PendingIntent existingAlarm = PendingIntent.getBroadcast(getApplicationContext(), 0, alarmIntent, PendingIntent.FLAG_NO_CREATE);
         boolean isAlarmSet = existingAlarm != null;
-        if (!isAlarmSet) {
-            Log.d(LOG_TAG, "Alarm is not set.");
+        if (existingAlarm != null) {
+            alarmManager.cancel(existingAlarm);
+        }
+
+        if (currentStamina >= maxStamina) {
+            Log.d(LOG_TAG, "Cancel stamina refresh alarm, stamina is full.");
+        }
+        else {
+            Log.d(LOG_TAG, "Setting alarm.");
             //startService(alarmIntent);
             PendingIntent alarmPendingIntent = PendingIntent.getBroadcast(
                     getApplicationContext(),
@@ -191,13 +198,17 @@ public class StaminaService extends Service {
             Log.d(LOG_TAG, "next alarm: " + (SystemClock.elapsedRealtime() + millisUntilNextStaminaTick));
             Log.d(LOG_TAG, "current clock: " + SystemClock.elapsedRealtime());
         }
+
+        /*if (!isAlarmSet) {
+
+        }
         else {
             Log.d(LOG_TAG, "Alarm is set: " + existingAlarm);
             if (currentStamina >= maxStamina) {
                 alarmManager.cancel(existingAlarm);
                 Log.d(LOG_TAG, "Cancel stamina refresh alarm, stamina is full.");
             }
-        }
+        }*/
 
         Log.d(LOG_TAG, "Extra millis: " + millisUntilNextStaminaTick);
         Log.d(LOG_TAG, "Refresh interval" + REFRESH_INTERVAL);
