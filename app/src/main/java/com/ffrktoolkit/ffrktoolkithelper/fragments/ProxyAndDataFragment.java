@@ -294,9 +294,11 @@ public class ProxyAndDataFragment extends Fragment {
             case SIGN_IN_REQUEST_CODE: {
                 // The Task returned from this call is always completed, no need to attach
                 // a listener.
-                Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
-                handleSignInResult(task);
-                break;
+                if (resultCode == Activity.RESULT_OK) {
+                    Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
+                    handleSignInResult(task);
+                    break;
+                }
             }
         }
     }
