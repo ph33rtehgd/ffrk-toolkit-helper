@@ -121,11 +121,8 @@ public class OverlayService extends Service {
 
         List<String> drops = intent.getStringArrayListExtra("drops");
         Log.d(LOG_TAG, "Drops broadcast received.");
-        final TextView dropView = mView.findViewById(R.id.overlay_text);
-        final RelativeLayout dropContainer = mView.findViewById(R.id.overlay_container);
-        final RelativeLayout overlayContainer = mView.findViewById(R.id.overlay_resizable);
-        final LinearLayout rootContainer = mView.findViewById(R.id.overlay_main);
 
+        final TextView dropView = mView.findViewById(R.id.overlay_text);
         final float scale = getApplicationContext().getResources().getDisplayMetrics().density;
         int pixels = (int) (19 * scale + 0.5f);
         if (drops != null) {
@@ -143,6 +140,10 @@ public class OverlayService extends Service {
 
 
             if ("dynamic".equalsIgnoreCase(overlayMode)) {
+                final RelativeLayout dropContainer = mView.findViewById(R.id.overlay_container);
+                final LinearLayout rootContainer = mView.findViewById(R.id.overlay_main);
+                //final RelativeLayout overlayContainer = mView.findViewById(R.id.overlay_resizable);
+
                 int containerSize = Math.max(pixels * drops.size(), pixels);
                 dropContainer.setLayoutParams(new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT, containerSize));
                 dropView.setLayoutParams(new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT, containerSize));
@@ -155,6 +156,8 @@ public class OverlayService extends Service {
             dropView.setText(getString(R.string.overlay_waiting_for_data));
 
             if ("dynamic".equalsIgnoreCase(overlayMode)) {
+                final RelativeLayout dropContainer = mView.findViewById(R.id.overlay_container);
+                final LinearLayout rootContainer = mView.findViewById(R.id.overlay_main);
                 dropContainer.setLayoutParams(new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT, pixels));
                 LayoutWrapContentUpdater.wrapContentAgain(rootContainer);
             }
