@@ -29,6 +29,7 @@ import com.ffrktoolkit.ffrktoolkithelper.OverlayService;
 import com.ffrktoolkit.ffrktoolkithelper.R;
 import com.ffrktoolkit.ffrktoolkithelper.StaminaService;
 import com.ffrktoolkit.ffrktoolkithelper.receivers.BroadcastIntentReceiver;
+import com.ffrktoolkit.ffrktoolkithelper.util.ServiceStartUtil;
 
 /**
  * This fragment shows general preferences only. It is used when the
@@ -74,7 +75,9 @@ public class OverlayFragment extends Fragment {
                 if (isChecked) {
                     prefs.edit().putBoolean("enableStaminaTracker", true).commit();
                     staminaNotification.setAction(getString(R.string.intent_update_stamina));
-                    getContext().startService(staminaNotification);
+                    //getContext().startService(staminaNotification);
+                    //StaminaService.enqueueWork(getContext(), staminaNotification);
+                    ServiceStartUtil.startService(getContext(), staminaNotification);
                 }
                 else {
                     prefs.edit().putBoolean("enableStaminaTracker", false).commit();
@@ -83,7 +86,9 @@ public class OverlayFragment extends Fragment {
                     alarmManager.cancel(staminaIntent);
 
                     staminaNotification.setAction(getString(R.string.intent_stop_stamina_tracker));
-                    getContext().startService(staminaNotification);
+                    ServiceStartUtil.startService(getContext(), staminaNotification);
+                    //getContext().startService(staminaNotification);
+                    //StaminaService.enqueueWork(context, staminaNotification);
                 }
             }
         });

@@ -7,6 +7,7 @@ import android.util.Log;
 
 import com.ffrktoolkit.ffrktoolkithelper.R;
 import com.ffrktoolkit.ffrktoolkithelper.StaminaService;
+import com.ffrktoolkit.ffrktoolkithelper.util.ServiceStartUtil;
 
 public class BroadcastIntentReceiver extends BroadcastReceiver {
 
@@ -21,12 +22,16 @@ public class BroadcastIntentReceiver extends BroadcastReceiver {
         if (intent.getAction().equals(context.getResources().getString(R.string.intent_update_stamina))) {
             Intent notificationIntent = new Intent(context, StaminaService.class);
             notificationIntent.setAction(context.getResources().getString(R.string.intent_update_stamina));
-            context.startService(notificationIntent);
+            //context.startService(notificationIntent);
+            //StaminaService.enqueueWork(context, intent);
+            ServiceStartUtil.startService(context, notificationIntent);
         }
         else if (intent.getAction().equals(context.getResources().getString(R.string.intent_stop_stamina_tracker))) {
             Intent notificationIntent = new Intent(context, StaminaService.class);
             notificationIntent.setAction(context.getResources().getString(R.string.intent_stop_stamina_tracker));
-            context.startService(notificationIntent);
+            //context.startService(notificationIntent);
+            //StaminaService.enqueueWork(context, intent);
+            ServiceStartUtil.startService(context, notificationIntent);
         }
     }
 

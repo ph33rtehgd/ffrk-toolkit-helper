@@ -6,12 +6,15 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
+import android.os.IBinder;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
+import android.support.v4.app.JobIntentService;
 import android.util.Log;
 
 import com.ffrktoolkit.ffrktoolkithelper.receivers.BroadcastIntentReceiver;
@@ -20,7 +23,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-public class StaminaService extends IntentService {
+public class StaminaService extends Service {
 
     private String LOG_TAG = "FFRKToolkitHelper";
 
@@ -28,12 +31,43 @@ public class StaminaService extends IntentService {
 
     private final static int STAMINA_NOTIFICATION_ID = 176123745;
 
-    public StaminaService() {
+    /*public StaminaService() {
         super("StaminaService");
+    }*/
+
+    /*public static void enqueueWork(Context context, Intent intent) {
+        enqueueWork(context, StaminaService.class, 1238, intent);
+    }*/
+
+    /*@Override
+    protected void onHandleWork(Intent intent) {
+        onHandleIntent(intent);
+    }*/
+
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
     }
 
     @Override
+    public void onCreate() {
+        super.onCreate();
+    }
+
+    @Override
+    //@TargetApi(23)
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        onHandleIntent(intent);
+        return super.onStartCommand(intent, flags, startId);
+    }
+
+    //@Override
     protected void onHandleIntent(Intent intent) {
+        if (intent == null || intent.getAction() == null) {
+            return;
+        }
+
         if (getString(R.string.intent_update_stamina).equalsIgnoreCase(intent.getAction())) {
             final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
             final boolean isStaminaNotificationEnabled = sharedPreferences.getBoolean("enableStaminaTracker", false);
@@ -44,6 +78,17 @@ public class StaminaService extends IntentService {
         else if (getString(R.string.intent_stop_stamina_tracker).equalsIgnoreCase(intent.getAction())) {
             Log.d(LOG_TAG, "Cancel stamina tracker alarm");
             NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            Notification.Builder notification = new Notification.Builder(this.getApplicationContext())
+                    .setSmallIcon(R.drawable.ic_proxy_notification_icon);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                notification.setChannelId(LOG_TAG);
+
+                int importance = NotificationManager.IMPORTANCE_DEFAULT;
+                NotificationChannel channel = new NotificationChannel(LOG_TAG, LOG_TAG, importance);
+                notificationManager.createNotificationChannel(channel);
+            }
+
+            this.startForeground(StaminaService.STAMINA_NOTIFICATION_ID, notification.build());
             notificationManager.cancel(StaminaService.STAMINA_NOTIFICATION_ID);
 
             AlarmManager alarmManager = (AlarmManager)this.getSystemService(Context.ALARM_SERVICE);
@@ -56,6 +101,7 @@ public class StaminaService extends IntentService {
                     PendingIntent.FLAG_UPDATE_CURRENT
             );
             alarmManager.cancel(alarmPendingIntent);
+            this.stopSelf();
         }
         else {
             Log.d(LOG_TAG, "Received invalid intent action for stamina service: " + intent.getAction());
@@ -175,6 +221,8 @@ public class StaminaService extends IntentService {
             notificationManager.createNotificationChannel(channel);
         }
 
-        notificationManager.notify(StaminaService.STAMINA_NOTIFICATION_ID, notification.build());
+        Notification builtNotification = notification.build();
+        this.startForeground(StaminaService.STAMINA_NOTIFICATION_ID, builtNotification);
+        //notificationManager.notify(StaminaService.STAMINA_NOTIFICATION_ID, builtNotification);
     }
 }
