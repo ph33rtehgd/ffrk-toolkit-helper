@@ -1,6 +1,7 @@
 package com.ffrktoolkit.ffrktoolkithelper.fragments;
 
 import android.annotation.TargetApi;
+import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
