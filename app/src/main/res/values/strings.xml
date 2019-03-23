@@ -94,6 +94,6 @@
     <string name="stamina_notification_time_left">Restored in %1$s at %2$s</string>
     <string name="stamina_restored">Stamina fully restored!</string>
 
-    <string name="error_proxy_already_started">Proxy already running or another application is using port&nbsp;</string>
+    <string name="error_proxy_already_started">Proxy already running or another application is using port\u0020</string>
 </resources>
 
