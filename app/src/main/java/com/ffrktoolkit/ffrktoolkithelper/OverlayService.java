@@ -57,8 +57,17 @@ public class OverlayService extends Service {
         mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         final String overlayMode = prefs.getString("overlay_mode", "dynamic");
-        final boolean isOverlayEnabled = prefs.getBoolean("enableOverlay", false);
 
+        if (intent != null) {
+            String action = intent.getAction();
+            Log.d(LOG_TAG, "Overlay intent action: " + action);
+            if ("showOverlay".equalsIgnoreCase(action)) {
+                prefs.edit().putBoolean("enableOverlay", true).commit();
+            }
+        }
+
+        final boolean isOverlayEnabled = prefs.getBoolean("enableOverlay", false);
+        Log.d(LOG_TAG, "overlay enabled: " + isOverlayEnabled);
         if (!isOverlayEnabled) {
             return super.onStartCommand(intent, flags, startId);
         }
@@ -67,14 +76,7 @@ public class OverlayService extends Service {
             if (!Settings.canDrawOverlays(this)) {
                 Intent overlayGrantIntent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()));
                 getApplicationContext().startActivity(overlayGrantIntent);
-            }
-        }
-
-        if (intent != null) {
-            String action = intent.getAction();
-            Log.d(LOG_TAG, "Overlay intent action: " + action);
-            if ("showOverlay".equalsIgnoreCase(action)) {
-                prefs.edit().putBoolean("enableOverlay", true).commit();
+                return super.onStartCommand(intent, flags, startId);
             }
         }
 

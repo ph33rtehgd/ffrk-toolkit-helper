@@ -24,6 +24,7 @@ import com.crashlytics.android.Crashlytics;
 import com.ffrktoolkit.ffrktoolkithelper.parser.InventoryParser;
 import com.ffrktoolkit.ffrktoolkithelper.util.DropUtils;
 
+import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -210,12 +211,16 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         } catch (Exception e) {
             Crashlytics.log(Log.DEBUG, LOG_TAG, "Exception while trying to start proxy server.");
             Crashlytics.logException(e);
+            int proxyPort = prefs.getInt("proxyPort", Integer.valueOf(getString(R.string.default_proxy_port)));
+            Toast.makeText(this,  getString(R.string.error_proxy_already_started) + proxyPort, Toast.LENGTH_SHORT);
         }
     }
 
     private void parseFfrkResponse(String requestUri, String response) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         //boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
+        Log.d(LOG_TAG, "Request URI: " + requestUri);
+
         try {
             if (requestUri.contains("/dff/party/list_buddy")) {
                 JSONObject json = new JSONObject(response);
@@ -237,30 +242,17 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             } else if (requestUri.contains("get_battle_init_data")) {
                 JSONObject json = new JSONObject(response);
                 parseBattleData(json);
-            } else if (requestUri.contains("win_battle")) {
+            } else if (requestUri.contains("win_battle") || requestUri.contains("escape_battle")
+                    || requestUri.contains("enter_multi") || requestUri.contains("enter_dungeon")
+                    || requestUri.contains("/dff/battle/escape") || requestUri.contains("/dff/battle/win")
+                    || requestUri.contains("/escape_battle") || requestUri.contains("/win_battle")
+                    || requestUri.endsWith("/dungeons") || requestUri.contains("/dungeons?world_id")
+                    || requestUri.endsWith("/battles") || requestUri.endsWith("/recover_stamina")) {
                 JSONObject json = new JSONObject(response);
                 parseStamina(json);
-            } else if (requestUri.contains("escape_battle")) {
-                JSONObject json = new JSONObject(response);
-                parseStamina(json);
-            } else if (requestUri.contains("enter_multi")) {
-                JSONObject json = new JSONObject(response);
-                parseStamina(json);
-            } else if (requestUri.contains("enter_dungeon")) {
-                JSONObject json = new JSONObject(response);
-                parseStamina(json);
-            } else if (requestUri.contains("/dff/battle/escape") || requestUri.contains("/dff/battle/win")
-                    || requestUri.contains("/escape_battle") || requestUri.contains("/win_battle")) {
-                JSONObject json = new JSONObject(response);
-                parseStamina(json);
-            } else if (requestUri.endsWith("/dungeons") || requestUri.contains("/dungeons?world_id")) {
-                JSONObject json = new JSONObject(response);
-                parseStamina(json);
-            } else if (requestUri.endsWith("/battles")) {
-                JSONObject json = new JSONObject(response);
-                parseStamina(json);
-            } else if (requestUri.endsWith("/recover_stamina")) {
-                JSONObject json = new JSONObject(response);
+            } else if (requestUri.endsWith("/dff/")) {
+                String responseJson = StringUtils.substringBetween(response, "<script data-app-init-data type=\"application/json\">", "</script>");
+                JSONObject json = new JSONObject(responseJson);
                 parseStamina(json);
             }
         } catch (Exception e) {
@@ -637,12 +629,20 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             JSONObject user = json.optJSONObject("user");
             if (user != null) {
                 Log.d(LOG_TAG, "User found");
-                JSONObject staminaInfo = user.getJSONObject("stamina_info");
+                //JSONObject staminaInfo = user.getJSONObject("stamina_info");
                 int recoveryTime = user.optInt("stamina_recovery_time");
                 int recoveryTimeRemaining = user.optInt("stamina_recovery_remaining_time");
                 int maxStamina = user.getInt("max_stamina");
                 int stamina = user.getInt("stamina");
-                long serverTime = json.getLong("SERVER_TIME");
+                long serverTime = json.optLong("SERVER_TIME");
+
+                if (serverTime == 0) {
+                    serverTime = json.optLong("current_time");
+                }
+
+                if (serverTime == 0) {
+                    return;
+                }
 
                 prefsEditor.putLong("serverTime", serverTime);
                 prefsEditor.putInt("currentStamina", stamina);

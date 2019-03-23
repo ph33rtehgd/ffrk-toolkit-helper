@@ -19,6 +19,7 @@ import android.util.Log;
 
 import com.ffrktoolkit.ffrktoolkithelper.receivers.BroadcastIntentReceiver;
 
+import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -136,7 +137,9 @@ public class StaminaService extends Service {
         //Log.d(LOG_TAG, "Stamina missing: " + (int) Math.ceil((double) secondsRemaining / (double) staminaRecoveryTime));
 
         String timeRemainingToFull = String.format("%d:%02d:%02d", new Object[] { Integer.valueOf(secondsRemaining / 3600), Integer.valueOf(secondsRemaining % 3600 / 60), Integer.valueOf(secondsRemaining % 60) });
-        String timeFullyRecovered = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date((currentSeconds + secondsRemaining) * 1000L));
+        String timeFullyRecovered = DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date((currentSeconds + secondsRemaining) * 1000L));
+        //String timeFullyRecovered = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date((currentSeconds + secondsRemaining) * 1000L));
+
         Notification.Builder notification = new Notification.Builder(this.getApplicationContext())
                 .setSmallIcon(R.drawable.ic_proxy_notification_icon)
                 .setContentTitle(String.format(getString(R.string.stamina_notification_current), new Object[] { currentStamina, maxStamina } ))

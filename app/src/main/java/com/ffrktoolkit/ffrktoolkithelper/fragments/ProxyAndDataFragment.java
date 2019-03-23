@@ -307,6 +307,14 @@ public class ProxyAndDataFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (!Settings.canDrawOverlays(getActivity())) {
+                final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
+                prefs.edit().putBoolean("enableOverlay", false).commit();
+            }
+        }
+
         checkIfAlreadySignedIn();
         checkIfInventoryChanged();
         updateDataMaps();
