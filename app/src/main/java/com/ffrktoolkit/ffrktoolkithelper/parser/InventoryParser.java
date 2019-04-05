@@ -301,14 +301,23 @@ public class InventoryParser {
                 for (int i = 0; i < existingEquipments.length(); i++) {
                     JSONObject existingEquipment = existingEquipments.getJSONObject(i);
                     Object existingRelicId = existingEquipment.opt("equipment_id");
+                    int existingRarity = existingEquipment.optInt("rarity");
+                    int existingLevel = existingEquipment.optInt("level");
+                    int existingHammering = existingEquipment.optInt("hammering_num");
                     if (existingRelicId != null) {
                         boolean alreadyExists = false;
                         for (int j = 0; j < equipments.length(); j++) {
                             JSONObject equipment = equipments.getJSONObject(j);
                             Object relicId = equipment.opt("equipment_id");
                             if (existingRelicId.equals(relicId)) {
-                                alreadyExists = true;
-                                break;
+                                int newLevel = equipment.optInt("level");
+                                int newHammering = equipment.optInt("hammering_num");
+                                int newRarity = equipment.optInt("rarity");
+                                if (newLevel == existingLevel && existingHammering == newHammering
+                                        && newRarity == existingRarity) {
+                                    alreadyExists = true;
+                                    break;
+                                }
                             }
                         }
 

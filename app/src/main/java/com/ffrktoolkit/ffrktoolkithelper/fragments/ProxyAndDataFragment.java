@@ -82,6 +82,7 @@ public class ProxyAndDataFragment extends Fragment {
     private InventoryParser parser = new InventoryParser();
     private BroadcastReceiver broadcastReceiver;
     private AtomicInteger updatesDone = new AtomicInteger(0);
+    private String dataMapResponse = null;
 
     public static ProxyAndDataFragment newInstance()
     {
@@ -897,12 +898,8 @@ public class ProxyAndDataFragment extends Fragment {
                         public void onResponse(String response) {
                             //Log.d(LOG_TAG, "Response: " + response);
                             if (response != null && !"false".equals(response) && !"".equals(response)) {
-                                FileOutputStream outputStream;
                                 try {
-                                    String fileName = getString(R.string.external_data_map_json);
-                                    outputStream = getActivity().openFileOutput(fileName, Context.MODE_PRIVATE);
-                                    outputStream.write(response.getBytes());
-                                    outputStream.close();
+                                    dataMapResponse = response;
                                     updateDataMaps();
                                 } catch (Exception e) {
                                     Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while writing data map json to storage.");
@@ -929,9 +926,23 @@ public class ProxyAndDataFragment extends Fragment {
     }
 
     private void updateDataMaps() {
+        Activity activity = getActivity();
+        if (activity == null) {
+            return;
+        }
+
         try {
+            if (dataMapResponse != null) {
+                FileOutputStream outputStream;
+                String fileName = getString(R.string.external_data_map_json);
+                outputStream = activity.openFileOutput(fileName, Context.MODE_PRIVATE);
+                outputStream.write(dataMapResponse.getBytes());
+                outputStream.close();
+                dataMapResponse = null;
+            }
+
             String fileName = getString(R.string.external_data_map_json);
-            File file = new File(getActivity().getFilesDir(), fileName);
+            File file = new File(activity.getFilesDir(), fileName);
 
             if (file.exists()) {
                 FileInputStream inputStream = new FileInputStream(file);

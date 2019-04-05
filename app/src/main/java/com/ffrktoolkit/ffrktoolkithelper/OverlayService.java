@@ -57,13 +57,15 @@ public class OverlayService extends Service {
         mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         final String overlayMode = prefs.getString("overlay_mode", "dynamic");
-
+        List<String> drops = null;
         if (intent != null) {
             String action = intent.getAction();
             Log.d(LOG_TAG, "Overlay intent action: " + action);
             if ("showOverlay".equalsIgnoreCase(action)) {
                 prefs.edit().putBoolean("enableOverlay", true).commit();
             }
+
+            drops = intent.getStringArrayListExtra("drops");
         }
 
         final boolean isOverlayEnabled = prefs.getBoolean("enableOverlay", false);
@@ -121,7 +123,6 @@ public class OverlayService extends Service {
             moveView();
         }
 
-        List<String> drops = intent.getStringArrayListExtra("drops");
         Log.d(LOG_TAG, "Drops broadcast received.");
 
         final TextView dropView = mView.findViewById(R.id.overlay_text);
