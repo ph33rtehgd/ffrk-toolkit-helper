@@ -77,7 +77,8 @@ public class OverlayService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!Settings.canDrawOverlays(this)) {
                 Intent overlayGrantIntent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()));
-                getApplicationContext().startActivity(overlayGrantIntent);
+                mContext.startActivity(overlayGrantIntent);
+                //getApplicationContext().startActivity(overlayGrantIntent);
                 return super.onStartCommand(intent, flags, startId);
             }
         }
