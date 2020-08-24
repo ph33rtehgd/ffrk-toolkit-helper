@@ -17,9 +17,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.app.Fragment;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -630,6 +630,8 @@ public class ProxyAndDataFragment extends Fragment {
         else {
             hideProgressWhenComplete(progress);
         }
+
+
     }
 
     private void startInventorySave(final ProgressDialog progress, final String jsonBody, final String region, final GoogleSignInAccount account, final Map<String, String> paramMap) {
@@ -641,7 +643,7 @@ public class ProxyAndDataFragment extends Fragment {
                     public void onResponse(String response) {
                         Log.d(LOG_TAG, "Response: " + response);
                         progress.setMessage(getString(R.string.upload_progress_dialog_loaded_message));
-                        progress.setProgress(progress.getProgress() + 25);
+                        progress.setProgress(progress.getProgress() + 20);
                         JSONObject json = new JSONObject();
                         hideProgressWhenComplete(progress);
                         try {
@@ -756,8 +758,7 @@ public class ProxyAndDataFragment extends Fragment {
                         @Override
                         public void onResponse(String response) {
                             Log.d(LOG_TAG, "Response: " + response.toString());
-                            int progressToMove = "global".equals(region) ? 25 : 50;
-                            progress.setProgress(progress.getProgress() + progressToMove);
+                            progress.setProgress(progress.getProgress() + 25);
                             hideProgressWhenComplete(progress);
                         }
                     }, new Response.ErrorListener() {
@@ -814,7 +815,8 @@ public class ProxyAndDataFragment extends Fragment {
                         @Override
                         public void onResponse(String response) {
                             Log.d(LOG_TAG, "Response: " + response.toString());
-                            progress.setProgress(progress.getProgress() + 50);
+                            int progressToMove = "global".equals(region) ? 25 : 50;
+                            progress.setProgress(progress.getProgress() + progressToMove);
                             hideProgressWhenComplete(progress);
                         }
                     }, new Response.ErrorListener() {
@@ -854,6 +856,62 @@ public class ProxyAndDataFragment extends Fragment {
         }
         catch (Throwable e){
             Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while sending material inventory.");
+            Crashlytics.logException(e);
+        }
+    }
+
+    private void callSaveEquipmentCollection(final GoogleSignInAccount account, final String collectionData, final String region, final ProgressDialog progress) {
+        String url = getString(R.string.user_functions_url);
+
+        Log.d(LOG_TAG, "Inside equipment collection save call.");
+        try {
+            progress.setMessage(getString(R.string.upload_progress_dialog_saving_message));
+            StringRequest saveCollectionRequest = new StringRequest
+                    (Request.Method.POST, url, new Response.Listener<String>() {
+
+                        @Override
+                        public void onResponse(String response) {
+                            Log.d(LOG_TAG, "Response: " + response.toString());
+                            progress.setProgress(progress.getProgress() + 50);
+                            hideProgressWhenComplete(progress);
+                        }
+                    }, new Response.ErrorListener() {
+
+                        @Override
+                        public void onErrorResponse(VolleyError error) {
+                            hideProgressWhenComplete(progress);
+                            Crashlytics.log(Log.ERROR, LOG_TAG, "Error in response: " + error.toString());
+                            Crashlytics.logException(error);
+                            Toast toast = Toast.makeText(getActivity().getApplicationContext(), getString(R.string.exception_saving_inventory), Toast.LENGTH_SHORT);
+                            toast.show();
+                        }
+                    }) {
+                @Override
+                protected Map<String, String> getParams() {
+                    Map<String, String> params = new HashMap<>();
+                    params.put("function", "saveOrbInventory");
+                    params.put("network", "Android");
+                    params.put("uid", account.getEmail());
+                    params.put("token", account.getIdToken());
+                    params.put("region", region);
+                    params.put("collectionData", collectionData);
+
+                    return params;
+                }
+
+                @Override
+                public Map<String, String> getHeaders() {
+                    Map<String, String> params = new HashMap<>();
+                    params.put("Content-Type", "application/x-www-form-urlencoded");
+                    return params;
+                }
+            };
+
+            // Access the RequestQueue through your singleton class.
+            HttpRequestSingleton.getInstance(getActivity()).addToRequestQueue(saveCollectionRequest);
+        }
+        catch (Throwable e){
+            Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while sending equipment collection.");
             Crashlytics.logException(e);
         }
     }

@@ -4,7 +4,7 @@
     android:orientation="horizontal" android:id="@id/overlay_main" android:layout_width="fill_parent" android:layout_height="wrap_content"
     xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <android.support.constraint.ConstraintLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@id/overlay_resizable"
         android:layout_width="fill_parent"
         android:layout_height="fill_parent">
@@ -69,5 +69,5 @@
             android:textSize="8.0sp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
-    </android.support.constraint.ConstraintLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </LinearLayout>

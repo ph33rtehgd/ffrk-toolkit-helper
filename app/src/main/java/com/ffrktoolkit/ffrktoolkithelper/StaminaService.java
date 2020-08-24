@@ -1,7 +1,6 @@
 package com.ffrktoolkit.ffrktoolkithelper;
 
 import android.app.AlarmManager;
-import android.app.IntentService;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -14,15 +13,13 @@ import android.os.Build;
 import android.os.IBinder;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
-import android.support.v4.app.JobIntentService;
+import androidx.core.app.JobIntentService;
 import android.util.Log;
 
 import com.ffrktoolkit.ffrktoolkithelper.receivers.BroadcastIntentReceiver;
 
 import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Locale;
 
 public class StaminaService extends Service {
 
