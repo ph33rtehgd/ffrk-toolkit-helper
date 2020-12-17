@@ -254,6 +254,10 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 String responseJson = StringUtils.substringBetween(response, "<script data-app-init-data type=\"application/json\">", "</script>");
                 JSONObject json = new JSONObject(responseJson);
                 parseStamina(json);
+            } else if (requestUri.endsWith("select_painting") || requestUri.endsWith("choose_explore_painting")
+                    || requestUri.endsWith("get_display_paintings")) {
+                JSONObject json = new JSONObject(response);
+                parseLabyrinthChests(json);
             }
         } catch (Exception e) {
             Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while parsing FFRK response.");
@@ -559,6 +563,39 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         return dropsText;
     }
 
+    private ArrayList<String> getChestString(List<JSONObject> drops) throws JSONException {
+        Log.d(LOG_TAG, "Starting chest parsing");
+
+        ArrayList<String> chestTexts = new ArrayList<>();
+        chestTexts.add("Chest contents (left to right)");
+        for (JSONObject drop : drops) {
+            String itemId = drop.getString("item_id");
+            String dropName = DropUtils.getDropName(itemId);
+            String itemType = "";
+            if (StringUtils.startsWith(itemId, "5")) {
+                itemType = " (Artifact)";
+            }
+            //else if (StringUtils.startsWith(itemId, "4")) {
+            //    itemType = " (Labyrinth Item)"; // Unconfirmed
+            //}
+            else if (StringUtils.startsWith(itemId, "3")) {
+                itemType = " (Labyrinth Item)";
+            }
+            else if (StringUtils.startsWith(itemId, "2")) {
+                itemType = " (Crystal)";
+            }
+            else if (StringUtils.startsWith(itemId, "1")) {
+                itemType = " (Mote/Orb)";
+            }
+
+            String dropText = dropName + itemType;
+            chestTexts.add(dropText);
+            Log.d(LOG_TAG, "Parsed chest: " + dropText);
+        }
+
+        return chestTexts;
+    }
+
     private void createProxyNotification() {
         Intent intent = new Intent(getApplicationContext(), ProxyService.class);
         intent.setAction(getString(R.string.intent_stop_proxy));
@@ -661,6 +698,41 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             return;
         } catch (Exception e) {
             Log.w(LOG_TAG, "Exception while parsing stamina from JSON.", e);
+            Crashlytics.logException(e);
+        }
+    }
+
+    private void parseLabyrinthChests(JSONObject json) {
+        List<JSONObject> drops = new ArrayList<>();
+
+        try {
+            Log.d(LOG_TAG, "Inside parseLabyrinthChests");
+            JSONObject labyrinthDungeonSession = json.optJSONObject("labyrinth_dungeon_session");
+            if (labyrinthDungeonSession == null) {
+                return;
+            }
+
+            JSONArray treasureChestIds = labyrinthDungeonSession.optJSONArray("treasure_chest_ids");
+            if (treasureChestIds == null || treasureChestIds.length() == 0) {
+                return;
+            }
+
+            for (int i = 0, treasureLen = treasureChestIds.length(); i < treasureLen; i++) {
+                Integer treasureId = treasureChestIds.getInt(i);
+                JSONObject drop = new JSONObject();
+                drop.put("item_id", String.valueOf(treasureId));
+                //drop.put("rarity", DropUtils.overrideRarity(String.valueOf(treasureId)));
+                drops.add(drop);
+            }
+
+            Log.d(LOG_TAG, "Chest list size " + drops.size());
+            ArrayList<String> dropTexts = getChestString(drops);
+            Intent dropsIntent = new Intent(this.getApplicationContext(), OverlayService.class);
+            dropsIntent.putStringArrayListExtra("drops", dropTexts);
+            getApplicationContext().startService(dropsIntent);
+        }
+        catch (Exception e) {
+            Log.w(LOG_TAG, "Exception while parsing labyrinth chests from JSON.", e);
             Crashlytics.logException(e);
         }
     }

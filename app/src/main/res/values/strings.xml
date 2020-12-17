@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">FFRK Toolkit Helper</string>
+    <string name="app_name">FT Helper</string>
 
     <!-- Strings related to Settings -->
     <!--<string name="pref_id_enable_proxy">enable_switch</string>
@@ -12,7 +12,7 @@
     <string name="pref_overlay_settings">Overlay &amp; Notification Settings</string>
 
     <string name="pref_title_enable_proxy">Enable Proxy</string>
-    <string name="pref_description_enable_proxy">Enables the HTTP proxy to capture FFRK
+    <string name="pref_description_enable_proxy">Enables the HTTP proxy to capture
         data.
     </string>
     <string name="pref_title_enable_overlay">Enable Overlay</string>
