@@ -148,7 +148,7 @@ public class OverlayService extends Service {
                 final LinearLayout rootContainer = mView.findViewById(R.id.overlay_main);
                 //final RelativeLayout overlayContainer = mView.findViewById(R.id.overlay_resizable);
 
-                int containerSize = Math.max(pixels * drops.size(), pixels);
+                int containerSize = Math.max(pixels * (drops.size() + 1), pixels);
                 dropContainer.setLayoutParams(new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT, containerSize));
                 dropView.setLayoutParams(new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT, containerSize));
                 LayoutWrapContentUpdater.wrapContentAgain(rootContainer);

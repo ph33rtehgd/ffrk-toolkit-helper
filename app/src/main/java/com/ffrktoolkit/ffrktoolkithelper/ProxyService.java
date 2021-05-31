@@ -256,8 +256,10 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 String responseJson = StringUtils.substringBetween(response, "<script data-app-init-data type=\"application/json\">", "</script>");
                 JSONObject json = new JSONObject(responseJson);
                 parseStamina(json);
-            } else if (requestUri.endsWith("select_painting") || requestUri.endsWith("choose_explore_painting")
-                    || requestUri.endsWith("get_display_paintings")) {
+            } else if (requestUri.endsWith("select_painting") || requestUri.endsWith("choose_explore_painting")) {
+                JSONObject json = new JSONObject(response);
+                parseLabyrinthChests(json);
+            } else if (requestUri.endsWith("get_display_paintings")) {
                 JSONObject json = new JSONObject(response);
                 parseLabyrinthChests(json);
             }
@@ -708,6 +710,50 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         }
     }
 
+    private void parseLabyrinthBattles(JSONObject json) {
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
+        List<JSONObject> drops = new ArrayList<>();
+
+        try {
+            Log.d(LOG_TAG, "Inside parseLabyrinthBattles");
+            JSONObject labyrinthDungeonSession = json.optJSONObject("labyrinth_dungeon_session");
+            if (labyrinthDungeonSession == null) {
+                return;
+            }
+
+            drops.addAll(parsePaintingBattles(labyrinthDungeonSession));
+
+            JSONArray treasureChestIds = labyrinthDungeonSession.optJSONArray("treasure_chest_ids");
+            if (treasureChestIds != null && treasureChestIds.length() != 0) {
+                JSONObject header = new JSONObject();
+                header.put("item_id", "Chest contents (left to right)");
+                drops.add(header);
+                for (int i = 0, treasureLen = treasureChestIds.length(); i < treasureLen; i++) {
+                    Integer treasureId = treasureChestIds.getInt(i);
+                    JSONObject drop = new JSONObject();
+                    drop.put("item_id", String.valueOf(treasureId));
+                    //drop.put("rarity", DropUtils.overrideRarity(String.valueOf(treasureId)));
+                    drops.add(drop);
+                }
+            }
+
+            if (drops.size() == 0) {
+                Log.d(LOG_TAG, "No chest or explore data");
+                return;
+            }
+
+            Log.d(LOG_TAG, "Battle list size " + drops.size());
+            ArrayList<String> dropTexts = getChestString(drops);
+            Intent dropsIntent = new Intent(this.getApplicationContext(), OverlayService.class);
+            dropsIntent.putStringArrayListExtra("drops", dropTexts);
+            getApplicationContext().startService(dropsIntent);
+        }
+        catch (Exception e) {
+            Log.w(LOG_TAG, "Exception while parsing labyrinth battles from JSON.", e);
+            crashlytics.recordException(e);
+        }
+    }
+
     private void parseLabyrinthChests(JSONObject json) {
         FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
         List<JSONObject> drops = new ArrayList<>();
@@ -728,7 +774,10 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 return;
             }*/
 
-            drops.addAll(parsePaintings(labyrinthDungeonSession));
+            drops.addAll(parsePaintingBattles(labyrinthDungeonSession));
+            if (drops.size() == 0) {
+                drops.addAll(parsePaintings(labyrinthDungeonSession));
+            }
 
             if (treasureChestIds != null && treasureChestIds.length() != 0) {
                 JSONObject header = new JSONObject();
@@ -745,7 +794,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
 
             if (drops.size() == 0) {
                 Log.d(LOG_TAG, "No chest or explore data");
-                return;
+                //return;
             }
 
             /*
@@ -785,6 +834,31 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             Log.w(LOG_TAG, "Exception while parsing labyrinth chests from JSON.", e);
             crashlytics.recordException(e);
         }
+    }
+
+    private ArrayList<JSONObject> parsePaintingBattles(JSONObject labyrinthDungeonSession) throws JSONException {
+        ArrayList<JSONObject> paintingResults = new ArrayList<>();
+        JSONObject dungeon = labyrinthDungeonSession.optJSONObject("dungeon");
+        if (dungeon != null) {
+            Log.d(LOG_TAG, "Inside dungeon");
+            JSONArray dungeonCaptures = dungeon.optJSONArray("captures");
+            if (dungeonCaptures != null) {
+                Log.d(LOG_TAG, "Inside dungeon capture");
+                for (int i = 0; i < dungeonCaptures.length(); i++) {
+                    JSONObject dungeonCapture = dungeonCaptures.optJSONObject(i);
+                    if (dungeonCapture != null) {
+                        JSONObject tipBattle = dungeonCapture.optJSONObject("tip_battle");
+                        if (tipBattle != null) {
+                            Log.d(LOG_TAG, "Inside tip battle, title: " + i + tipBattle.optString("title"));
+                            JSONObject paintingResult = new JSONObject();
+                            paintingResult.put("item_id", "Battle " + i + ": " + tipBattle.optString("title"));
+                            paintingResults.add(paintingResult);
+                        }
+                    }
+                }
+            }
+        }
+        return paintingResults;
     }
 
     private ArrayList<JSONObject> parsePaintings(JSONObject labyrinthDungeonSession) throws JSONException {
@@ -835,23 +909,6 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 }
             }
         }
-
-        JSONObject dungeon = labyrinthDungeonSession.optJSONObject("dungeon");
-        if (dungeon != null) {
-            Log.d(LOG_TAG, "Inside dungeon");
-            JSONObject dungeonCapture = dungeon.optJSONObject("captures");
-            if (dungeonCapture != null) {
-                Log.d(LOG_TAG, "Inside dungeon capture");
-                JSONObject tipBattle = dungeonCapture.optJSONObject("tip_battle");
-                if (tipBattle != null) {
-                    Log.d(LOG_TAG, "Inside tup battle, title: " + tipBattle.optString("title"));
-                    JSONObject paintingResult = new JSONObject();
-                    paintingResult.put("item_id", "Battle: " + tipBattle.optString("title"));
-                    paintingResults.add(paintingResult);
-                }
-            }
-        }
-
         return paintingResults;
     }
 
