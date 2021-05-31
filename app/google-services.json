@@ -15,6 +15,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "193355482636-48ju8ctreppjeofmkb4rnl018nlul68q.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ffrktoolkit.ffrktoolkithelper",
+            "certificate_hash": "b7b29aea88544e022271bd4f3db360df5b098132"
+          }
+        },
+        {
           "client_id": "193355482636-gms0i74qkn3vm5i4eqsf3uc10vrgdl8m.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -41,20 +49,13 @@
         }
       ],
       "services": {
-        "analytics_service": {
-          "status": 1
-        },
         "appinvite_service": {
-          "status": 2,
           "other_platform_oauth_client": [
             {
-              "client_id": "193355482636-v8vqij11qe5qvpjc1su5u6jq62l4p0i4.apps.googleusercontent.com",
+              "client_id": "193355482636-ubef27karnj97jv1tcdnn8p45llhtnrs.apps.googleusercontent.com",
               "client_type": 3
             }
           ]
-        },
-        "ads_service": {
-          "status": 2
         }
       }
     }

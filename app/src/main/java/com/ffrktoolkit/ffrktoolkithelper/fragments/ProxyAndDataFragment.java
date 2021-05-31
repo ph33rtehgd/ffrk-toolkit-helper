@@ -40,7 +40,7 @@ import com.android.volley.Request;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
-import com.crashlytics.android.Crashlytics;
+import com.google.firebase.crashlytics.FirebaseCrashlytics;
 import com.ffrktoolkit.ffrktoolkithelper.OverlayService;
 import com.ffrktoolkit.ffrktoolkithelper.ProxyService;
 import com.ffrktoolkit.ffrktoolkithelper.R;
@@ -364,6 +364,7 @@ public class ProxyAndDataFragment extends Fragment {
     }
 
     private void handleSignInResult(Task<GoogleSignInAccount> completedTask) {
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
         try {
             GoogleSignInAccount account = completedTask.getResult(ApiException.class);
 
@@ -377,14 +378,15 @@ public class ProxyAndDataFragment extends Fragment {
             final Button submitInventoryBtn = (Button) this.getActivity().findViewById(R.id.submit_inventory_btn);
             submitInventoryBtn.setEnabled(true);
 
-            Crashlytics.setUserEmail(account.getEmail());
-            Crashlytics.setUserIdentifier(account.getId());
+
+            crashlytics.setCustomKey("userEmail", account.getEmail());
+            crashlytics.setUserId(account.getId());
         } catch (ApiException e) {
             // The ApiException status code indicates the detailed failure reason.
             // Please refer to the GoogleSignInStatusCodes class reference for more information.
-            Crashlytics.log(Log.WARN, LOG_TAG, "signInResult:failed code=" + e.getStatusCode());
-            Crashlytics.log(Log.WARN, LOG_TAG, e.getMessage());
-            Crashlytics.logException(e);
+            crashlytics.log("signInResult:failed code=" + e.getStatusCode());
+            crashlytics.log(e.getMessage());
+            crashlytics.recordException(e);
         }
     }
 
@@ -495,6 +497,8 @@ public class ProxyAndDataFragment extends Fragment {
     }
 
     private void processInventoryData(final String region) {
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
+
         String fileName = "global".equals(region) ? getString(R.string.file_inventory_global_json) : getString(R.string.file_inventory_jp_json);
         File inventoryFile = new File(getActivity().getApplicationContext().getFilesDir(), fileName);
 
@@ -576,8 +580,8 @@ public class ProxyAndDataFragment extends Fragment {
                 }
                 catch (Exception e) {
                     hideProgressWhenComplete(progress);
-                    Crashlytics.log(Log.WARN, LOG_TAG, "Exception while parsing inventory relic JSON.");
-                    Crashlytics.logException(e);
+                    crashlytics.log("Exception while parsing inventory relic JSON.");
+                    crashlytics.recordException(e);
                 }
             }
             else {
@@ -600,8 +604,8 @@ public class ProxyAndDataFragment extends Fragment {
                 }
                 catch (Exception e) {
                     hideProgressWhenComplete(progress);
-                    Crashlytics.log(Log.WARN, LOG_TAG, "Exception while parsing inventory relic JSON.");
-                    Crashlytics.logException(e);
+                    crashlytics.log("Exception while parsing inventory relic JSON.");
+                    crashlytics.recordException(e);
                 }
             }
             else {
@@ -619,8 +623,8 @@ public class ProxyAndDataFragment extends Fragment {
                     callSaveMaterialInventory(account, transformedJson.toString(), region, progress);
                 }
                 catch (Exception e) {
-                    Crashlytics.log(Log.DEBUG, LOG_TAG, "Exception while parsing material inventory to send.");
-                    Crashlytics.logException(e);
+                    crashlytics.log("Exception while parsing material inventory to send.");
+                    crashlytics.recordException(e);
                 }
             }
             else {
@@ -635,6 +639,7 @@ public class ProxyAndDataFragment extends Fragment {
     }
 
     private void startInventorySave(final ProgressDialog progress, final String jsonBody, final String region, final GoogleSignInAccount account, final Map<String, String> paramMap) {
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
         String url = getString(R.string.user_functions_url);
         StringRequest httpRequest = new StringRequest
                 (Request.Method.POST, url, new Response.Listener<String>() {
@@ -660,8 +665,8 @@ public class ProxyAndDataFragment extends Fragment {
                         }
                         catch (JSONException e) {
                             hideProgressWhenComplete(progress);
-                            Crashlytics.log(Log.WARN, LOG_TAG,"Exception while parsing inventory JSON");
-                            Crashlytics.logException(e);
+                            crashlytics.log("Exception while parsing inventory JSON");
+                            crashlytics.recordException(e);
                             return;
                         }
                     }
@@ -671,8 +676,8 @@ public class ProxyAndDataFragment extends Fragment {
                     public void onErrorResponse(VolleyError error) {
                         hideProgressWhenComplete(progress);
                         hideProgressWhenComplete(progress);
-                        Crashlytics.log(Log.ERROR, LOG_TAG, "Error in response: " + error.toString());
-                        Crashlytics.logException(error);
+                        crashlytics.log("Error in response: " + error.toString());
+                        crashlytics.recordException(error);
                         Toast toast = Toast.makeText(getActivity().getApplicationContext(), getString(R.string.exception_loading_inventory), Toast.LENGTH_SHORT);
                         toast.show();
                     }
@@ -694,6 +699,7 @@ public class ProxyAndDataFragment extends Fragment {
     }
 
     private void callSaveInventory(final GoogleSignInAccount account, String rawInventoryJson, JSONObject loadedInventoryJson, String region, final ProgressDialog progress) {
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
         Log.d(LOG_TAG, "Original inventory: " + loadedInventoryJson.toString());
         String url = getString(R.string.user_functions_url);
         final JSONObject mergedInventory = parser.parseJsonToInventoryFormat(rawInventoryJson, loadedInventoryJson, region);
@@ -714,8 +720,8 @@ public class ProxyAndDataFragment extends Fragment {
                     @Override
                     public void onErrorResponse(VolleyError error) {
                         progress.cancel();
-                        Crashlytics.log(Log.ERROR, LOG_TAG, "Error in response: " + error.toString());
-                        Crashlytics.logException(error);
+                        crashlytics.log("Error in response: " + error.toString());
+                        crashlytics.recordException(error);
 
                         Toast toast = Toast.makeText(getActivity().getApplicationContext(), getString(R.string.exception_saving_inventory), Toast.LENGTH_SHORT);
                         toast.show();
@@ -746,6 +752,7 @@ public class ProxyAndDataFragment extends Fragment {
     }
 
     private void callSaveRelicInventory(final GoogleSignInAccount account, final JSONObject relicInventory, final String region, final ProgressDialog progress) {
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
         String url = getString(R.string.user_functions_url);
 
         Log.d(LOG_TAG, "Inside relic save call.");
@@ -766,8 +773,8 @@ public class ProxyAndDataFragment extends Fragment {
                         @Override
                         public void onErrorResponse(VolleyError error) {
                             hideProgressWhenComplete(progress);
-                            Crashlytics.log(Log.ERROR, LOG_TAG, "Error in response: " + error.toString());
-                            Crashlytics.logException(error);
+                            crashlytics.log("Error in response: " + error.toString());
+                            crashlytics.recordException(error);
 
                             Toast toast = Toast.makeText(getActivity().getApplicationContext(), getString(R.string.exception_saving_inventory), Toast.LENGTH_SHORT);
                             toast.show();
@@ -798,12 +805,13 @@ public class ProxyAndDataFragment extends Fragment {
             HttpRequestSingleton.getInstance(getActivity()).addToRequestQueue(saveInventoryRequest);
         }
         catch (Throwable e){
-            Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while sending relic inventory.");
-            Crashlytics.logException(e);
+            crashlytics.log("Exception while sending relic inventory.");
+            crashlytics.recordException(e);
         }
     }
 
     private void callSaveMaterialInventory(final GoogleSignInAccount account, final String materialInventory, final String region, final ProgressDialog progress) {
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
         String url = getString(R.string.user_functions_url);
 
         Log.d(LOG_TAG, "Inside material save call.");
@@ -824,8 +832,8 @@ public class ProxyAndDataFragment extends Fragment {
                         @Override
                         public void onErrorResponse(VolleyError error) {
                             hideProgressWhenComplete(progress);
-                            Crashlytics.log(Log.ERROR, LOG_TAG, "Error in response: " + error.toString());
-                            Crashlytics.logException(error);
+                            crashlytics.log("Error in response: " + error.toString());
+                            crashlytics.recordException(error);
                             Toast toast = Toast.makeText(getActivity().getApplicationContext(), getString(R.string.exception_saving_inventory), Toast.LENGTH_SHORT);
                             toast.show();
                         }
@@ -855,12 +863,13 @@ public class ProxyAndDataFragment extends Fragment {
             HttpRequestSingleton.getInstance(getActivity()).addToRequestQueue(saveInventoryRequest);
         }
         catch (Throwable e){
-            Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while sending material inventory.");
-            Crashlytics.logException(e);
+            crashlytics.log("Exception while sending material inventory.");
+            crashlytics.recordException(e);
         }
     }
 
     private void callSaveEquipmentCollection(final GoogleSignInAccount account, final String collectionData, final String region, final ProgressDialog progress) {
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
         String url = getString(R.string.user_functions_url);
 
         Log.d(LOG_TAG, "Inside equipment collection save call.");
@@ -880,8 +889,8 @@ public class ProxyAndDataFragment extends Fragment {
                         @Override
                         public void onErrorResponse(VolleyError error) {
                             hideProgressWhenComplete(progress);
-                            Crashlytics.log(Log.ERROR, LOG_TAG, "Error in response: " + error.toString());
-                            Crashlytics.logException(error);
+                            crashlytics.log("Error in response: " + error.toString());
+                            crashlytics.recordException(error);
                             Toast toast = Toast.makeText(getActivity().getApplicationContext(), getString(R.string.exception_saving_inventory), Toast.LENGTH_SHORT);
                             toast.show();
                         }
@@ -911,8 +920,8 @@ public class ProxyAndDataFragment extends Fragment {
             HttpRequestSingleton.getInstance(getActivity()).addToRequestQueue(saveCollectionRequest);
         }
         catch (Throwable e){
-            Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while sending equipment collection.");
-            Crashlytics.logException(e);
+            crashlytics.log("Exception while sending equipment collection.");
+            crashlytics.recordException(e);
         }
     }
 
@@ -945,6 +954,7 @@ public class ProxyAndDataFragment extends Fragment {
     }
 
     private void downloadDataMaps() {
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
         String url = getString(R.string.data_maps_url);
 
         Log.d(LOG_TAG, "Inside update data maps.");
@@ -960,8 +970,8 @@ public class ProxyAndDataFragment extends Fragment {
                                     dataMapResponse = response;
                                     updateDataMaps();
                                 } catch (Exception e) {
-                                    Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while writing data map json to storage.");
-                                    Crashlytics.logException(e);
+                                    crashlytics.log("Exception while writing data map json to storage.");
+                                    crashlytics.recordException(e);
                                     return;
                                 }
                             }
@@ -970,16 +980,16 @@ public class ProxyAndDataFragment extends Fragment {
 
                         @Override
                         public void onErrorResponse(VolleyError error) {
-                            Crashlytics.log(Log.ERROR, LOG_TAG, "Error in response: " + error.toString());
-                            Crashlytics.logException(error);
+                            crashlytics.log("Error in response: " + error.toString());
+                            crashlytics.recordException(error);
                         }
                     });
 
             HttpRequestSingleton.getInstance(getActivity()).addToRequestQueue(updateMapsRequest);
         }
         catch (Throwable e){
-            Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while sending relic inventory.");
-            Crashlytics.logException(e);
+            crashlytics.log("Exception while sending relic inventory.");
+            crashlytics.recordException(e);
         }
     }
 
@@ -989,6 +999,7 @@ public class ProxyAndDataFragment extends Fragment {
             return;
         }
 
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
         try {
             if (dataMapResponse != null) {
                 FileOutputStream outputStream;
@@ -1023,8 +1034,8 @@ public class ProxyAndDataFragment extends Fragment {
             }
         }
         catch (Exception e) {
-            Crashlytics.log(Log.WARN, LOG_TAG, "Exception while parsing data maps.");
-            Crashlytics.logException(e);
+            crashlytics.log("Exception while parsing data maps.");
+            crashlytics.recordException(e);
         }
     }
 

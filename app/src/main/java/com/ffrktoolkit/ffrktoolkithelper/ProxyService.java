@@ -20,7 +20,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Toast;
 
-import com.crashlytics.android.Crashlytics;
+import com.google.firebase.crashlytics.FirebaseCrashlytics;
 import com.ffrktoolkit.ffrktoolkithelper.parser.InventoryParser;
 import com.ffrktoolkit.ffrktoolkithelper.util.DropUtils;
 
@@ -164,6 +164,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         Log.d(LOG_TAG, "startProxy");
         int port = PreferenceManager.getDefaultSharedPreferences(this).getInt("proxyPort", 8081);
 
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
         try {
             this.server = DefaultHttpProxyServer.bootstrap().withPort(port)
                     .withFiltersSource(new HttpFiltersSourceAdapter() {
@@ -193,8 +194,8 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                                             parseFfrkResponse(originalRequest.getUri(), responseContent);
                                             //Log.d(LOG_TAG, responseContent);
                                         } catch (Exception e) {
-                                            Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while parsing response content.");
-                                            Crashlytics.logException(e);
+                                            crashlytics.log("Exception while parsing response content.");
+                                            crashlytics.recordException(e);
                                         }
                                     }
 
@@ -209,14 +210,15 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                     })
                     .start();
         } catch (Exception e) {
-            Crashlytics.log(Log.DEBUG, LOG_TAG, "Exception while trying to start proxy server.");
-            Crashlytics.logException(e);
+            crashlytics.log("Exception while trying to start proxy server.");
+            crashlytics.recordException(e);
             int proxyPort = prefs.getInt("proxyPort", Integer.valueOf(getString(R.string.default_proxy_port)));
             Toast.makeText(this,  getString(R.string.error_proxy_already_started) + proxyPort, Toast.LENGTH_SHORT);
         }
     }
 
     private void parseFfrkResponse(String requestUri, String response) {
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         //boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
         Log.d(LOG_TAG, "Request URI: " + requestUri);
@@ -260,12 +262,13 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 parseLabyrinthChests(json);
             }
         } catch (Exception e) {
-            Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while parsing FFRK response.");
-            Crashlytics.logException(e);
+            crashlytics.log("Exception while parsing FFRK response.");
+            crashlytics.recordException(e);
         }
     }
 
     private void parsePartyData(String requestUri, JSONObject json) throws JSONException {
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         /*boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
         Crashlytics.log("Parsing soulbreaks/legend materia from " + requestUri);
@@ -303,7 +306,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             }
         } catch (Exception e) {
             Log.w(LOG_TAG, "Exception while parsing existing inventory, ignoring.", e);
-            Crashlytics.logException(e);
+            crashlytics.recordException(e);
         }
 
         FileOutputStream outputStream;
@@ -314,7 +317,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             outputStream.close();
         } catch (Exception e) {
             Log.e(LOG_TAG, "Exception while writing inventory json to storage.", e);
-            Crashlytics.logException(e);
+            crashlytics.recordException(e);
             return;
         }
 
@@ -322,6 +325,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
     }
 
     private void parseInventoryData(String inventoryType, String requestUri, JSONObject json) throws JSONException {
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         /*boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
         Crashlytics.log("Parsing inventory from " + requestUri);
@@ -372,8 +376,8 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 prefs.edit().putBoolean("hasInventoryChanged_" + region, true).commit();
             }
         } catch (Exception e) {
-            Crashlytics.log(Log.WARN, LOG_TAG, "Exception while parsing existing inventory, ignoring.");
-            Crashlytics.logException(e);
+            crashlytics.log("Exception while parsing existing inventory, ignoring.");
+            crashlytics.recordException(e);
         }
 
         FileOutputStream outputStream;
@@ -382,8 +386,8 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             outputStream.write(filteredResponse.toString().getBytes());
             outputStream.close();
         } catch (Exception e) {
-            Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while writing inventory json to storage.");
-            Crashlytics.logException(e);
+            crashlytics.log("Exception while writing inventory json to storage.");
+            crashlytics.recordException(e);
             return;
         }
 
@@ -391,6 +395,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
     }
 
     private void parseMaterialData(String requestUri, JSONObject json) throws JSONException {
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         /*boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
         Crashlytics.log("Parsing material data from " + requestUri);
@@ -426,8 +431,8 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                 }
             }
         } catch (Exception e) {
-            Crashlytics.log(Log.WARN, LOG_TAG, "Exception while parsing existing inventory, ignoring.");
-            Crashlytics.logException(e);
+            crashlytics.log("Exception while parsing existing inventory, ignoring.");
+            crashlytics.recordException(e);
         }
 
         FileOutputStream outputStream;
@@ -437,8 +442,8 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             outputStream.write(filteredJson.toString().getBytes());
             outputStream.close();
         } catch (Exception e) {
-            Crashlytics.log(Log.ERROR, LOG_TAG, "Exception while writing inventory json to storage.");
-            Crashlytics.logException(e);
+            crashlytics.log("Exception while writing inventory json to storage.");
+            crashlytics.recordException(e);
             return;
         }
 
@@ -446,6 +451,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
     }
 
     private void parseBattleData(JSONObject json) {
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
         List<JSONObject> drops = new ArrayList<>();
         try {
             JSONObject battleData = json.getJSONObject("battle");
@@ -495,8 +501,8 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             dropsIntent.putStringArrayListExtra("drops", dropTexts);
             getApplicationContext().startService(dropsIntent);
         } catch (Exception e) {
-            Crashlytics.log(Log.WARN, LOG_TAG, "Exception while parsing battle data.");
-            Crashlytics.logException(e);
+            crashlytics.log("Exception while parsing battle data.");
+            crashlytics.recordException(e);
         }
     }
 
@@ -567,7 +573,6 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         Log.d(LOG_TAG, "Starting chest parsing");
 
         ArrayList<String> chestTexts = new ArrayList<>();
-        chestTexts.add("Chest contents (left to right)");
         for (JSONObject drop : drops) {
             String itemId = drop.getString("item_id");
             String dropName = DropUtils.getDropName(itemId);
@@ -658,6 +663,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
     }
 
     private void parseStamina(JSONObject json) {
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         SharedPreferences.Editor prefsEditor = sharedPreferences.edit();
         final boolean isStaminaNotificationEnabled = sharedPreferences.getBoolean("enableStaminaTracker", false);
@@ -698,11 +704,12 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             return;
         } catch (Exception e) {
             Log.w(LOG_TAG, "Exception while parsing stamina from JSON.", e);
-            Crashlytics.logException(e);
+            crashlytics.recordException(e);
         }
     }
 
     private void parseLabyrinthChests(JSONObject json) {
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
         List<JSONObject> drops = new ArrayList<>();
 
         try {
@@ -713,17 +720,60 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             }
 
             JSONArray treasureChestIds = labyrinthDungeonSession.optJSONArray("treasure_chest_ids");
-            if (treasureChestIds == null || treasureChestIds.length() == 0) {
+            JSONObject explorePaintingEvent = labyrinthDungeonSession.optJSONObject("explore_painting_event");
+            //if ((treasureChestIds == null || treasureChestIds.length() == 0)
+                    //&& explorePaintingEvent == null) {
+            /*if (treasureChestIds == null || treasureChestIds.length() == 0) {
+                Log.d(LOG_TAG, "No chest or explore data");
+                return;
+            }*/
+
+            drops.addAll(parsePaintings(labyrinthDungeonSession));
+
+            if (treasureChestIds != null && treasureChestIds.length() != 0) {
+                JSONObject header = new JSONObject();
+                header.put("item_id", "Chest contents (left to right)");
+                drops.add(header);
+                for (int i = 0, treasureLen = treasureChestIds.length(); i < treasureLen; i++) {
+                    Integer treasureId = treasureChestIds.getInt(i);
+                    JSONObject drop = new JSONObject();
+                    drop.put("item_id", String.valueOf(treasureId));
+                    //drop.put("rarity", DropUtils.overrideRarity(String.valueOf(treasureId)));
+                    drops.add(drop);
+                }
+            }
+
+            if (drops.size() == 0) {
+                Log.d(LOG_TAG, "No chest or explore data");
                 return;
             }
 
-            for (int i = 0, treasureLen = treasureChestIds.length(); i < treasureLen; i++) {
-                Integer treasureId = treasureChestIds.getInt(i);
-                JSONObject drop = new JSONObject();
-                drop.put("item_id", String.valueOf(treasureId));
-                //drop.put("rarity", DropUtils.overrideRarity(String.valueOf(treasureId)));
-                drops.add(drop);
-            }
+            /*
+            if (explorePaintingEvent != null) {
+                JSONObject id = new JSONObject();
+                id.put("item_id", String.valueOf(explorePaintingEvent.getInt("id")));
+                drops.add(id);
+
+                JSONObject type = new JSONObject();
+                type.put("item_id", String.valueOf(explorePaintingEvent.getInt("type")));
+                drops.add(type);
+
+                JSONObject textMasterId = new JSONObject();
+                textMasterId.put("item_id", explorePaintingEvent.getString("text_master_id"));
+                drops.add(textMasterId);
+
+                JSONObject subTextMaster1 = new JSONObject();
+                subTextMaster1.put("item_id", explorePaintingEvent.getString("sub_text_master_id_1"));
+                drops.add(subTextMaster1);
+
+                JSONObject subTextMaster2 = new JSONObject();
+                subTextMaster2.put("item_id", explorePaintingEvent.getString("sub_text_master_id_2"));
+                drops.add(subTextMaster2);
+
+                JSONObject subTextMaster3 = new JSONObject();
+                subTextMaster3.put("item_id", explorePaintingEvent.getString("sub_text_master_id_3"));
+                drops.add(subTextMaster3);
+            }*/
 
             Log.d(LOG_TAG, "Chest list size " + drops.size());
             ArrayList<String> dropTexts = getChestString(drops);
@@ -733,8 +783,76 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         }
         catch (Exception e) {
             Log.w(LOG_TAG, "Exception while parsing labyrinth chests from JSON.", e);
-            Crashlytics.logException(e);
+            crashlytics.recordException(e);
         }
+    }
+
+    private ArrayList<JSONObject> parsePaintings(JSONObject labyrinthDungeonSession) throws JSONException {
+        ArrayList<JSONObject> paintingResults = new ArrayList<>();
+        JSONArray displayPaintings = labyrinthDungeonSession.optJSONArray("display_paintings");
+        if (displayPaintings != null) {
+            Log.d(LOG_TAG, "Inside display paintings");
+            for (int i = 0, length = displayPaintings.length(); i < length; i++) {
+                Log.d(LOG_TAG, "Inside display paintings loop: " + i);
+                if (i > 2) {
+                    break;
+                }
+
+                JSONObject painting = displayPaintings.getJSONObject(i);
+                if (painting == null) {
+                    Log.d(LOG_TAG, "Inside display paintings loop: painting null");
+                    continue;
+                }
+
+                Log.d(LOG_TAG, "Painting ID: " + painting.optInt("painting_id"));
+                JSONObject dungeon = painting.optJSONObject("dungeon");
+                if (dungeon == null) {
+                    Log.d(LOG_TAG, "Inside display paintings loop: dungeon null");
+                    continue;
+                }
+
+                JSONArray dungeonCaptures = dungeon.optJSONArray("captures");
+                if (dungeonCaptures == null) {
+                    Log.d(LOG_TAG, "Inside display paintings loop: captures null");
+                    continue;
+                }
+                for (int j = 0; j < dungeonCaptures.length(); j++) {
+                    JSONObject dungeonCapture = dungeonCaptures.optJSONObject(j);
+                    if (dungeonCapture == null) {
+                        continue;
+                    }
+
+                    JSONObject tipBattle = dungeonCapture.optJSONObject("tip_battle");
+                    if (tipBattle == null) {
+                        Log.d(LOG_TAG, "Inside display paintings loop: tip_battle");
+                        continue;
+                    }
+
+                    Log.d(LOG_TAG, "Inside display paintings loop, canvas title: " + tipBattle.optString("title"));
+                    JSONObject paintingResult = new JSONObject();
+                    paintingResult.put("item_id", "Canvas " + (i + 1) + ": " + tipBattle.optString("title"));
+                    paintingResults.add(paintingResult);
+                }
+            }
+        }
+
+        JSONObject dungeon = labyrinthDungeonSession.optJSONObject("dungeon");
+        if (dungeon != null) {
+            Log.d(LOG_TAG, "Inside dungeon");
+            JSONObject dungeonCapture = dungeon.optJSONObject("captures");
+            if (dungeonCapture != null) {
+                Log.d(LOG_TAG, "Inside dungeon capture");
+                JSONObject tipBattle = dungeonCapture.optJSONObject("tip_battle");
+                if (tipBattle != null) {
+                    Log.d(LOG_TAG, "Inside tup battle, title: " + tipBattle.optString("title"));
+                    JSONObject paintingResult = new JSONObject();
+                    paintingResult.put("item_id", "Battle: " + tipBattle.optString("title"));
+                    paintingResults.add(paintingResult);
+                }
+            }
+        }
+
+        return paintingResults;
     }
 
     /**
