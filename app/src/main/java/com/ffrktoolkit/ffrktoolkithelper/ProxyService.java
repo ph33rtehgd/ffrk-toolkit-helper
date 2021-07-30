@@ -24,6 +24,7 @@ import com.google.firebase.crashlytics.FirebaseCrashlytics;
 import com.ffrktoolkit.ffrktoolkithelper.parser.InventoryParser;
 import com.ffrktoolkit.ffrktoolkithelper.util.DropUtils;
 
+import org.acra.ACRA;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -225,28 +226,34 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         String requestUri = request.getUri();
-        //boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
+        boolean isDebugEnabled = prefs.getBoolean("enableDebug", false);
         Log.d(LOG_TAG, "Request URI: " + requestUri);
 
         try {
             if (requestUri.contains("/dff/party/list_buddy")) {
+                Log.i(LOG_TAG, "Entering /dff/party/list_buddy");
                 JSONObject json = new JSONObject(response);
                 parsePartyData(requestUri, json);
             } else if (requestUri.contains("/dff/party/list_equipment")) {
+                Log.i(LOG_TAG, "Entering /dff/party/list_equipment");
                 JSONObject json = new JSONObject(response);
                 parseInventoryData("inventory", requestUri, json);
             } else if (requestUri.contains("/dff/party/list_other")) {
+                Log.i(LOG_TAG, "Entering /dff/party/list_other");
                 JSONObject json = new JSONObject(response);
                 parseMaterialData(requestUri, json);
             } else if (requestUri.contains("/dff/party/list")) {
+                Log.i(LOG_TAG, "Entering /dff/party/list");
                 JSONObject json = new JSONObject(response);
                 parsePartyData(requestUri, json);
                 parseInventoryData("inventory", requestUri, json);
                 parseStamina(json);
             } else if (requestUri.contains("/dff/warehouse/get_equipment_list")) {
+                Log.i(LOG_TAG, "Entering get_equipment_list");
                 JSONObject json = new JSONObject(response);
                 parseInventoryData("vault", requestUri, json);
             } else if (requestUri.contains("get_battle_init_data")) {
+                Log.i(LOG_TAG, "Entering battle");
                 JSONObject json = new JSONObject(response);
                 parseBattleData(json);
             } else if (requestUri.contains("win_battle") || requestUri.contains("escape_battle")
@@ -255,27 +262,39 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
                     || requestUri.contains("/escape_battle") || requestUri.contains("/win_battle")
                     || requestUri.endsWith("/dungeons") || requestUri.contains("/dungeons?world_id")
                     || requestUri.endsWith("/battles") || requestUri.endsWith("/recover_stamina")) {
+                Log.i(LOG_TAG, "Entering battle over");
                 JSONObject json = new JSONObject(response);
                 parseStamina(json);
             } else if (requestUri.endsWith("/dff/")) {
+                Log.i(LOG_TAG, "Entering /dff/");
                 String responseJson = StringUtils.substringBetween(response, "<script data-app-init-data type=\"application/json\">", "</script>");
                 JSONObject json = new JSONObject(responseJson);
                 parseStamina(json);
             } else if (requestUri.endsWith("select_painting") || requestUri.endsWith("choose_explore_painting")) {
+                Log.i(LOG_TAG, "Entering select_painting/choose_explore_painting");
                 JSONObject json = new JSONObject(response);
                 processLabyrinthSelectExploreResponse(json);
             } else if (requestUri.endsWith("get_display_paintings")) {
+                Log.i(LOG_TAG, "Entering get_display_paintings");
                 JSONObject json = new JSONObject(response);
                 processLabyrinthDisplayResponse(json);
             } else if (requestUri.endsWith("finish_current_painting")) {
+                Log.i(LOG_TAG, "Entering finish_current_painting");
                 if (wasLastCallToOpenChest) {
                     wasLastCallToOpenChest = false;
                     processLabyrinthTreasureChestResponse(labyrinthDataFinishChestHolder);
                 }
             }
         } catch (Exception e) {
+            Log.e(LOG_TAG, "Exception while parsing FFRK response.", e);
+            Log.e(LOG_TAG, response);
             crashlytics.log("Exception while parsing FFRK response.");
             crashlytics.recordException(e);
+        }
+
+        if (isDebugEnabled) {
+            Log.d(LOG_TAG, "Sending request result to ACRA.");
+            ACRA.getErrorReporter().handleSilentException(null);
         }
     }
 

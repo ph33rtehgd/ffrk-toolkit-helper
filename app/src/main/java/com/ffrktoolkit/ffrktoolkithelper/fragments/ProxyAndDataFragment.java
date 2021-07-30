@@ -2,6 +2,7 @@ package com.ffrktoolkit.ffrktoolkithelper.fragments;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
@@ -56,6 +57,7 @@ import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 
+import org.acra.ACRA;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -143,19 +145,66 @@ public class ProxyAndDataFragment extends Fragment {
             }
         });
 
-        /*final Switch enableDebugSwitch = getView().findViewById(R.id.enable_debug_switch);
+        final Switch enableDebugSwitch = getView().findViewById(R.id.enable_debug_switch);
         enableDebugSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
                 if (isChecked) {
-                    prefs.edit().putBoolean("enableDebugToasts", true).commit();
+                    new AlertDialog.Builder(getContext())
+                            .setTitle("Enable debugging")
+                            .setMessage("Enabling debugging will send debugging data to the FFRK Toolkit backend. This may include the contents of the " +
+                                    "responses sent by the game. This data will only be used to help troubleshoot issues you are having with the app, however " +
+                                    "if you are not comfortable with this, please disable debugging mode. Proceed with enabling debug mode?")
+
+                            // Specifying a listener allows you to take an action before dismissing the dialog.
+                            // The dialog is automatically dismissed when a dialog button is clicked.
+                            .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int which) {
+                                    prefs.edit().putBoolean("enableDebug", true).commit();
+                                }
+                            })
+
+                            // A null listener allows the button to dismiss the dialog and take no further action.
+                            .setNegativeButton(android.R.string.no,  new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int which) {
+                                    enableDebugSwitch.setChecked(false);
+                                    prefs.edit().putBoolean("enableDebug", false).commit();
+                                }
+                            })
+                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .show();
                 }
                 else {
-                    prefs.edit().putBoolean("enableDebugToasts", false).commit();
+                    prefs.edit().putBoolean("enableDebug", false).commit();
                 }
             }
-        });*/
+        });
+
+        final Button sendLogs = getView().findViewById(R.id.manually_send_logs);
+        sendLogs.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                new AlertDialog.Builder(getContext())
+                        .setTitle("Send logs")
+                        .setMessage("Sending logs will trigger a one-time upload of debugging data to the FFRK Toolkit backend. This may include the contents of the " +
+                                "responses sent by the game. This data will only be used to help troubleshoot issues you are having with the app, however " +
+                                "if you are not comfortable with this, please do not proceed. Proceed to upload logs?")
+
+                        // Specifying a listener allows you to take an action before dismissing the dialog.
+                        // The dialog is automatically dismissed when a dialog button is clicked.
+                        .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+                                ACRA.getErrorReporter().handleSilentException(null);
+                            }
+                        })
+
+                        // A null listener allows the button to dismiss the dialog and take no further action.
+                        .setNegativeButton(android.R.string.no, null)
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .show();
+            }
+        });
 
         final Button openWifiBtn = getView().findViewById(R.id.wifi_settings);
         openWifiBtn.setOnClickListener(new View.OnClickListener() {
@@ -334,9 +383,9 @@ public class ProxyAndDataFragment extends Fragment {
             checkDrawOverlayPermission();
         }
 
-        /*boolean isDebugEnabled = prefs.getBoolean("enableDebugToasts", false);
+        boolean isDebugEnabled = prefs.getBoolean("enableDebug", false);
         final Switch enableDebugToasts = (Switch) getView().findViewById(R.id.enable_debug_switch);
-        enableDebugToasts.setChecked(isDebugEnabled);*/
+        enableDebugToasts.setChecked(isDebugEnabled);
 
         final EditText proxyPortText = (EditText) getView().findViewById(R.id.proxy_port);
         int proxyPort = prefs.getInt("proxyPort", Integer.valueOf(getString(R.string.default_proxy_port)));

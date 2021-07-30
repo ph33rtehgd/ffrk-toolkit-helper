@@ -23,6 +23,11 @@
                 <Button android:id="@id/google_login_btn" android:text="@string/pref_title_google_login" android:layout_width="fill_parent" android:layout_height="wrap_content" />
             </LinearLayout>
 
+            <LinearLayout android:orientation="vertical" android:layout_marginTop="@dimen/activity_vertical_margin" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                <Switch android:id="@id/enable_debug_switch" android:text="@string/pref_title_enable_debug" android:layout_width="fill_parent" android:layout_height="wrap_content" />
+                <Button android:id="@id/manually_send_logs" android:text="@string/manually_send_logs" android:enabled="true" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/activity_vertical_margin_large" />
+            </LinearLayout>
+
         </LinearLayout>
     </ScrollView>
 </FrameLayout>

@@ -4,11 +4,24 @@ import com.google.android.material.tabs.TabLayout;
 import androidx.appcompat.app.AppCompatActivity;
 
 import androidx.viewpager.widget.ViewPager;
+
+import android.app.Activity;
+import android.app.Application;
+import android.content.Context;
 import android.os.Bundle;
 
 import com.ffrktoolkit.ffrktoolkithelper.fragments.OverlayFragment;
 import com.ffrktoolkit.ffrktoolkithelper.fragments.ProxyAndDataFragment;
 import com.ffrktoolkit.ffrktoolkithelper.views.ViewPagerAdapter;
+
+import org.acra.ACRA;
+import org.acra.config.CoreConfigurationBuilder;
+import org.acra.config.HttpSenderConfigurationBuilder;
+import org.acra.data.StringFormat;
+import org.acra.security.TLS;
+import org.acra.sender.HttpSender;
+
+import java.util.Arrays;
 
 public class FFRKToolkitHelperActivity extends AppCompatActivity {
 
@@ -32,4 +45,5 @@ public class FFRKToolkitHelperActivity extends AppCompatActivity {
         mViewPager.setAdapter(viewPagerAdapter);
         ((TabLayout) findViewById(R.id.tab_layout)).setupWithViewPager(mViewPager);
     }
+
 }
