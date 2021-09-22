@@ -22,6 +22,7 @@
     <item type="id" name="login_status" />
 
     <item type="id" name="wifi_settings" />
+    <item type="id" name="install_cert" />
     <item type="id" name="region_upload_spinner" />
 
     <item type="id" name="overlay_mode_spinner" />

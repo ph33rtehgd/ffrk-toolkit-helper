@@ -8,6 +8,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
@@ -20,11 +21,20 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Toast;
 
+import com.ffrktoolkit.ffrktoolkithelper.util.FfrkFilterAdapter;
+import com.google.common.net.HttpHeaders;
 import com.google.firebase.crashlytics.FirebaseCrashlytics;
 import com.ffrktoolkit.ffrktoolkithelper.parser.InventoryParser;
 import com.ffrktoolkit.ffrktoolkithelper.util.DropUtils;
 
+import net.lightbody.bmp.mitm.CertificateAndKeySource;
+import net.lightbody.bmp.mitm.KeyStoreFileCertificateSource;
+import net.lightbody.bmp.mitm.RootCertificateGenerator;
+import net.lightbody.bmp.mitm.manager.ImpersonatingMitmManager;
+
 import org.acra.ACRA;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -33,12 +43,24 @@ import org.littleshoot.proxy.HttpFilters;
 import org.littleshoot.proxy.HttpFiltersAdapter;
 import org.littleshoot.proxy.HttpFiltersSourceAdapter;
 import org.littleshoot.proxy.HttpProxyServer;
+//import org.littleshoot.proxy.extras.SelfSignedMitmManager;
+import org.littleshoot.proxy.extras.SelfSignedMitmManager;
 import org.littleshoot.proxy.impl.DefaultHttpProxyServer;
+import org.littleshoot.proxy.mitm.Authority;
+import org.littleshoot.proxy.mitm.CertificateSniffingMitmManager;
+//import org.littleshoot.proxy.mitm.Authority;
+//import org.littleshoot.proxy.mitm.CertificateSniffingMitmManager;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -49,9 +71,11 @@ import java.util.Map;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.util.AttributeKey;
 import io.netty.util.CharsetUtil;
 
 public class ProxyService extends Service implements View.OnTouchListener, View.OnClickListener {
@@ -65,6 +89,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
     private JSONObject labyrinthDataFinishChestHolder = null;
     private boolean wasLastCallToOpenChest = false;
     private List<JSONObject> buddyParts = new ArrayList<>();
+    private static final AttributeKey<String> CONNECTED_URL = AttributeKey.valueOf("connected_url");
     //private Context appContext;
 
     public ProxyService() {
@@ -150,6 +175,14 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         }
     }
 
+    private void copyFile(InputStream in, OutputStream out) throws IOException {
+        byte[] buffer = new byte[1024];
+        int read;
+        while((read = in.read(buffer)) != -1){
+            out.write(buffer, 0, read);
+        }
+    }
+
     public void startProxy() {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         Log.d(LOG_TAG, String.valueOf(prefs.getBoolean("enableProxy", false)));
@@ -170,51 +203,86 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         int port = PreferenceManager.getDefaultSharedPreferences(this).getInt("proxyPort", 8081);
 
         FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
+        InputStream inputStream = null;
+        InputStream inputStreamPem = null;
+        File certFile = null;
+        File pemFile = null;
+
+        CertificateAndKeySource fileCertificateSource = null;
+        RootCertificateGenerator rootCertificateGenerator = null;
+        try{
+            inputStream = getResources().openRawResource(R.raw.fthelper);
+            inputStreamPem = getResources().openRawResource(R.raw.fthelperrootca);
+            File tempFile = File.createTempFile("temp", "cert");
+            File tempPem = File.createTempFile("temp", "pem");
+
+            copyFile(inputStream, new FileOutputStream(tempFile));
+            copyFile(inputStreamPem, new FileOutputStream(tempPem));
+
+            certFile = new File (tempFile.getParentFile() + File.separator + "fthelper.p12");
+            pemFile = new File (tempPem.getParentFile() + File.separator + "fthelper.pem");
+            if (certFile.exists()) {
+                certFile.delete();
+            }
+            if (pemFile.exists()) {
+                pemFile.delete();
+            }
+            tempFile.renameTo(certFile);
+            tempPem.renameTo(pemFile);
+
+            Log.i(LOG_TAG, tempFile.getAbsolutePath());
+            Log.i(LOG_TAG, certFile.getAbsolutePath());
+            Log.i(LOG_TAG, pemFile.getAbsolutePath());
+
+            fileCertificateSource = new KeyStoreFileCertificateSource("PKCS12", certFile, "fthelper", "password123");
+        } catch (IOException e) {
+            Log.e(LOG_TAG, "Exception while getting cert.", e);
+        }
+
         try {
+            final ProxyService proxyService = this;
             this.server = DefaultHttpProxyServer.bootstrap().withPort(port)
                     .withFiltersSource(new HttpFiltersSourceAdapter() {
                         public HttpFilters filterRequest(HttpRequest originalRequest, ChannelHandlerContext ctx) {
-                            return new HttpFiltersAdapter(originalRequest) {
-                                @Override
-                                public HttpResponse clientToProxyRequest(HttpObject httpObject) {
-                                    // TODO: implement your filtering here
-                                    if (isUrlForFfrk(originalRequest.getUri()) && (httpObject instanceof HttpRequest)) {
-                                        Log.d(LOG_TAG, "Sending request to " + ((HttpRequest) httpObject).getUri());
-                                    }
-
-                                    return null;
+                            String uri = originalRequest.getUri();
+                            Log.i(LOG_TAG, "URL: " + uri);
+                            Log.i(LOG_TAG, "Method: " + originalRequest.getMethod());
+                            if (originalRequest.getMethod() == HttpMethod.CONNECT) {
+                                if (ctx != null) {
+                                    String prefix = "https://" + uri.replaceFirst(":443$", "");
+                                    Log.i(LOG_TAG, "URI set to context: " + prefix);
+                                    ctx.attr(CONNECTED_URL).set(prefix);
                                 }
-
-                                @Override
-                                public HttpObject serverToProxyResponse(HttpObject httpObject) {
-                                    Log.d(LOG_TAG, httpObject.getClass().getName());
-                                    if (isUrlForFfrk(originalRequest.getUri()) && httpObject instanceof FullHttpResponse) {
-                                        FullHttpResponse response = (FullHttpResponse) httpObject;
-                                        Log.d(LOG_TAG, "Received response for " + originalRequest.getUri());
-
-                                        try {
-                                            URL urlPath = new URL(originalRequest.getUri());
-                                            Log.d(LOG_TAG, "Response path: " + urlPath.getPath());
-                                            String responseContent = response.content().toString(CharsetUtil.UTF_8);
-                                            parseFfrkResponse(originalRequest, responseContent);
-                                            //Log.d(LOG_TAG, responseContent);
-                                        } catch (Exception e) {
-                                            crashlytics.log("Exception while parsing response content.");
-                                            crashlytics.recordException(e);
-                                        }
-                                    }
-
-                                    return httpObject;
-                                }
-                            };
+                                return new HttpFiltersAdapter(originalRequest, ctx);
+                            }
+                            String connectedUrl = ctx.attr(CONNECTED_URL).get();
+                            if (connectedUrl == null) {
+                                connectedUrl = uri;
+                            }
+                            else {
+                                connectedUrl += uri;
+                            }
+                            Log.i(LOG_TAG, "Connected URL: " + connectedUrl);
+                            //originalRequest.setUri(connectedUrl);
+                            return new FfrkFilterAdapter(originalRequest, proxyService, connectedUrl);
                         }
 
                         public int getMaximumResponseBufferSizeInBytes() {
                             return 10485760;
                         }
                     })
+                    .withManInTheMiddle(new CertificateSniffingMitmManager(new Authority(certFile.getParentFile(),
+                            "fthelper", "password123".toCharArray(), "FTHelper",
+                            "FTHelper", "FTHelper", "FTHelper",
+                            "FTHelper")))
+                    //.withManInTheMiddle(new SelfSignedMitmManager())
+                    .withTransparent(true)
+                    //.withManInTheMiddle(ImpersonatingMitmManager.builder()
+                            //.rootCertificateSource(fileCertificateSource)
+                            //.build())
                     .start();
         } catch (Exception e) {
+            Log.e(LOG_TAG, "Exception while starting proxy", e);
             crashlytics.log("Exception while trying to start proxy server.");
             crashlytics.recordException(e);
             int proxyPort = prefs.getInt("proxyPort", Integer.valueOf(getString(R.string.default_proxy_port)));
@@ -222,7 +290,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         }
     }
 
-    private void parseFfrkResponse(HttpRequest request, String response) {
+    public void parseFfrkResponse(HttpRequest request, String response) {
         FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         String requestUri = request.getUri();

@@ -9,6 +9,7 @@ import android.app.Activity;
 import android.app.Application;
 import android.content.Context;
 import android.os.Bundle;
+//import android.os.StrictMode;
 
 import com.ffrktoolkit.ffrktoolkithelper.fragments.OverlayFragment;
 import com.ffrktoolkit.ffrktoolkithelper.fragments.ProxyAndDataFragment;
@@ -44,6 +45,11 @@ public class FFRKToolkitHelperActivity extends AppCompatActivity {
         //viewPagerAdapter.addFragment(ProxyAndDataFragment.newInstance(), getString(R.string.pref_header_proxy_and_data));
         mViewPager.setAdapter(viewPagerAdapter);
         ((TabLayout) findViewById(R.id.tab_layout)).setupWithViewPager(mViewPager);
+
+        /*if (android.os.Build.VERSION.SDK_INT > 9) {
+            StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+            StrictMode.setThreadPolicy(policy);
+        }*/
     }
 
 }

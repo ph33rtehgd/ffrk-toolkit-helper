@@ -18,9 +18,16 @@ import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
+
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+
+import android.security.KeyChain;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -62,12 +69,25 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.net.ssl.KeyManagerFactory;
+import javax.security.cert.CertificateException;
+import javax.security.cert.X509Certificate;
 
 import io.netty.util.CharsetUtil;
 
@@ -83,6 +103,7 @@ public class ProxyAndDataFragment extends Fragment {
     private final static int OVERLAY_REQUEST_CODE = 5001;
     private InventoryParser parser = new InventoryParser();
     private BroadcastReceiver broadcastReceiver;
+    private ActivityResultLauncher<Intent> certInstallLauncher;
     private AtomicInteger updatesDone = new AtomicInteger(0);
     private String dataMapResponse = null;
 
@@ -98,6 +119,18 @@ public class ProxyAndDataFragment extends Fragment {
         super.onCreate(bundle);
         registerReceiver();
         downloadDataMaps();
+
+        certInstallLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            new ActivityResultCallback<ActivityResult>() {
+                @Override
+                public void onActivityResult(ActivityResult result) {
+                    if (result.getResultCode() == Activity.RESULT_OK) {
+                        // There are no request codes
+                        Intent data = result.getData();
+                    }
+                }
+            });
     }
 
     @Override
@@ -218,6 +251,14 @@ public class ProxyAndDataFragment extends Fragment {
                 toast.show();
 
                 startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
+            }
+        });
+
+        final Button installCertBtn = getView().findViewById(R.id.install_cert);
+        installCertBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                installCertificate();
             }
         });
 
@@ -1085,6 +1126,33 @@ public class ProxyAndDataFragment extends Fragment {
         catch (Exception e) {
             crashlytics.log("Exception while parsing data maps.");
             crashlytics.recordException(e);
+        }
+    }
+
+    private void installCertificate() {
+        try {
+            BufferedInputStream bis = new BufferedInputStream(getResources().openRawResource(R.raw.fthelper));
+            //byte[] keychain = new byte[bis.available()];
+            //bis.read(keychain);
+            KeyStore keystore = KeyStore.getInstance("PKCS12");
+            keystore.load(bis, "password123".toCharArray());
+
+            KeyManagerFactory kmf = KeyManagerFactory.getInstance("X509");
+            kmf.init(keystore, "password123".toCharArray());
+
+            keystore.getCertificate("fthelper");
+            //CertificateFactory cf = CertificateFactory.getInstance("X.509", "BC");
+
+            Log.i(LOG_TAG, keystore.getCertificate("fthelper").toString());
+
+            Intent installIntent = KeyChain.createInstallIntent();
+            //Certificate x509 = cf.generateCertificate(bis); //X509Certificate.getInstance(keychain);
+            //X509Certificate x509 = X509Certificate.getInstance(keychain);
+            installIntent.putExtra(KeyChain.EXTRA_CERTIFICATE, keystore.getCertificate("fthelper").getEncoded());
+            installIntent.putExtra(KeyChain.EXTRA_NAME, "FT Helper");
+            certInstallLauncher.launch(installIntent);
+        } catch (IOException | KeyStoreException | UnrecoverableKeyException | java.security.cert.CertificateException | NoSuchAlgorithmException e) {
+            Log.e(LOG_TAG, e.getMessage(), e);
         }
     }
 

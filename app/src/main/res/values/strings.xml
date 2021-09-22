@@ -27,6 +27,7 @@
     <string name="reset_overlay_btn_text">Reset Overlay Position</string>
 
     <string name="open_wifi_settings_btn_text">Open Wifi Settings</string>
+    <string name="install_cert_text">Install HTTPS Certificate</string>
 
     <string name="pref_title_send_inventory_data">Send Inventory</string>
     <string name="pref_description_send_inventory_data">Tap to send your captured inventory data
@@ -85,7 +86,7 @@
     <string name="overlay_waiting_for_data">No battle data available</string>
     <string name="overlay_no_drops">No drop data available for this battle</string>
 
-    <string name="proxy_bypass_list">127.0.0.1,lcd-prod.appspot.com,live.chartboost.com,android.clients.google.com,googleapis.com,ssl.sp.mbga-platform.jp,ssl.sp.mbga.jp,app.adjust.io</string>
+    <string name="proxy_bypass_list">127.0.0.1,lcd-prod.appspot.com,live.chartboost.com,android.clients.google.com,googleapis.com,android.googleapis.com,ssl.sp.mbga-platform.jp,ssl.sp.mbga.jp,app.adjust.io,play.googleapis.com</string>
 
     <string name="waiting_for_data">Waiting for data...</string>
 
