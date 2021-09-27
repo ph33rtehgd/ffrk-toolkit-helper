@@ -27,10 +27,14 @@ import com.google.firebase.crashlytics.FirebaseCrashlytics;
 import com.ffrktoolkit.ffrktoolkithelper.parser.InventoryParser;
 import com.ffrktoolkit.ffrktoolkithelper.util.DropUtils;
 
-import net.lightbody.bmp.mitm.CertificateAndKeySource;
-import net.lightbody.bmp.mitm.KeyStoreFileCertificateSource;
-import net.lightbody.bmp.mitm.RootCertificateGenerator;
-import net.lightbody.bmp.mitm.manager.ImpersonatingMitmManager;
+//import net.lightbody.bmp.mitm.CertificateAndKeySource;
+//import net.lightbody.bmp.mitm.KeyStoreFileCertificateSource;
+//import net.lightbody.bmp.mitm.RootCertificateGenerator;
+//import net.lightbody.bmp.mitm.manager.ImpersonatingMitmManager;
+
+//import net.lightbody.bmp.mitm.CertificateAndKeySource;
+//import net.lightbody.bmp.mitm.KeyStoreFileCertificateSource;
+//import net.lightbody.bmp.mitm.RootCertificateGenerator;
 
 import org.acra.ACRA;
 import org.apache.commons.io.FileUtils;
@@ -44,7 +48,7 @@ import org.littleshoot.proxy.HttpFiltersAdapter;
 import org.littleshoot.proxy.HttpFiltersSourceAdapter;
 import org.littleshoot.proxy.HttpProxyServer;
 //import org.littleshoot.proxy.extras.SelfSignedMitmManager;
-import org.littleshoot.proxy.extras.SelfSignedMitmManager;
+//import org.littleshoot.proxy.extras.SelfSignedMitmManager;
 import org.littleshoot.proxy.impl.DefaultHttpProxyServer;
 import org.littleshoot.proxy.mitm.Authority;
 import org.littleshoot.proxy.mitm.CertificateSniffingMitmManager;
@@ -208,8 +212,8 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
         File certFile = null;
         File pemFile = null;
 
-        CertificateAndKeySource fileCertificateSource = null;
-        RootCertificateGenerator rootCertificateGenerator = null;
+        //CertificateAndKeySource fileCertificateSource = null;
+        //RootCertificateGenerator rootCertificateGenerator = null;
         try{
             inputStream = getResources().openRawResource(R.raw.fthelper);
             inputStreamPem = getResources().openRawResource(R.raw.fthelperrootca);
@@ -234,7 +238,7 @@ public class ProxyService extends Service implements View.OnTouchListener, View.
             Log.i(LOG_TAG, certFile.getAbsolutePath());
             Log.i(LOG_TAG, pemFile.getAbsolutePath());
 
-            fileCertificateSource = new KeyStoreFileCertificateSource("PKCS12", certFile, "fthelper", "password123");
+            //fileCertificateSource = new KeyStoreFileCertificateSource("PKCS12", certFile, "fthelper", "password123");
         } catch (IOException e) {
             Log.e(LOG_TAG, "Exception while getting cert.", e);
         }
