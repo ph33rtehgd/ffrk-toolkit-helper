@@ -97,5 +97,9 @@
     <string name="stamina_restored">Stamina fully restored!</string>
 
     <string name="error_proxy_already_started">Proxy already running or another application is using port\u0020</string>
+
+    <string name="cert_manual_install_11">You need to manually install the certificate on Android 11 and higher</string>
+    <string name="cert_extracted">Certificate has been extracted</string>
+    <string name="error">Error</string>
 </resources>
 

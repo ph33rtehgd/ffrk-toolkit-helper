@@ -74,6 +74,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -91,6 +93,8 @@ import javax.security.cert.X509Certificate;
 
 import io.netty.util.CharsetUtil;
 
+import static android.app.Activity.RESULT_OK;
+
 /**
  * This fragment shows general preferences only. It is used when the
  * activity is showing a two-pane settings UI.
@@ -106,6 +110,7 @@ public class ProxyAndDataFragment extends Fragment {
     private ActivityResultLauncher<Intent> certInstallLauncher;
     private AtomicInteger updatesDone = new AtomicInteger(0);
     private String dataMapResponse = null;
+    private static final int REQUEST_CERT_SAVE = 1;
 
     public static ProxyAndDataFragment newInstance()
     {
@@ -125,7 +130,7 @@ public class ProxyAndDataFragment extends Fragment {
             new ActivityResultCallback<ActivityResult>() {
                 @Override
                 public void onActivityResult(ActivityResult result) {
-                    if (result.getResultCode() == Activity.RESULT_OK) {
+                    if (result.getResultCode() == RESULT_OK) {
                         // There are no request codes
                         Intent data = result.getData();
                     }
@@ -386,11 +391,32 @@ public class ProxyAndDataFragment extends Fragment {
             case SIGN_IN_REQUEST_CODE: {
                 // The Task returned from this call is always completed, no need to attach
                 // a listener.
-                if (resultCode == Activity.RESULT_OK) {
+                if (resultCode == RESULT_OK) {
                     Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
                     handleSignInResult(task);
                     break;
                 }
+            }
+            case REQUEST_CERT_SAVE: {
+                if(resultCode == RESULT_OK) {
+                    Uri uri = data.getData();
+                    try {
+                        InputStream in = new BufferedInputStream(getResources().openRawResource(R.raw.fthelperrootca));
+                        OutputStream out = getContext().getContentResolver().openOutputStream(uri);
+                        byte[] buffer = new byte[1024];
+                        int len;
+                        while ((len = in.read(buffer)) > 0) {
+                            out.write(buffer, 0, len);
+                            out.flush();
+                        }
+                        out.close();
+                        Toast.makeText(this.getActivity(), R.string.cert_extracted, Toast.LENGTH_SHORT).show();
+                    } catch(IOException e) {
+                        Toast.makeText(this.getActivity(), R.string.error, Toast.LENGTH_SHORT).show();
+                    }
+                }
+                break;
+
             }
         }
     }
@@ -1151,6 +1177,16 @@ public class ProxyAndDataFragment extends Fragment {
             installIntent.putExtra(KeyChain.EXTRA_CERTIFICATE, keystore.getCertificate("fthelper").getEncoded());
             installIntent.putExtra(KeyChain.EXTRA_NAME, "FT Helper");
             certInstallLauncher.launch(installIntent);
+            if(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                Toast.makeText(this.getActivity(), R.string.cert_manual_install_11, Toast.LENGTH_LONG).show();
+                Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType("application/x-pem-file");
+                intent.putExtra(Intent.EXTRA_TITLE, "FTHelper-CA.pem");
+                startActivityForResult(intent, REQUEST_CERT_SAVE);
+                return;
+            }
+
         } catch (IOException | KeyStoreException | UnrecoverableKeyException | java.security.cert.CertificateException | NoSuchAlgorithmException e) {
             Log.e(LOG_TAG, e.getMessage(), e);
         }

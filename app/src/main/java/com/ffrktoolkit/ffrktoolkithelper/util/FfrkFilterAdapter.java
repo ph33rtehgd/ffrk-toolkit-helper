@@ -1,12 +1,13 @@
 package com.ffrktoolkit.ffrktoolkithelper.util;
 
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.ffrktoolkit.ffrktoolkithelper.ProxyService;
 import com.google.common.net.HttpHeaders;
 import com.google.firebase.crashlytics.FirebaseCrashlytics;
 
-import org.apache.commons.lang3.StringUtils;
+//import org.apache.commons.lang3.StringUtils;
 import org.littleshoot.proxy.HttpFiltersAdapter;
 
 import java.net.URL;
@@ -75,7 +76,8 @@ public class FfrkFilterAdapter extends HttpFiltersAdapter {
                     URL urlPath = new URL(uri);
                     Log.d(LOG_TAG, "Response path: " + urlPath.getPath());
                     proxyService.parseFfrkResponse(originalRequest, responseContent);
-                    Log.d(LOG_TAG, StringUtils.truncate(responseContent, 1000));
+                    //Log.d(LOG_TAG, StringUtils.truncate(responseContent, 1000));
+                    Log.d(LOG_TAG, TextUtils.substring(responseContent, 0, 1000));
                 } catch (Exception e) {
                     Log.e(LOG_TAG, "Error in response processing.", e);
                     crashlytics.log("Exception while parsing response content.");
