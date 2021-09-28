@@ -3,14 +3,14 @@ apply plugin: 'com.google.gms.google-services'
 apply plugin: 'com.google.firebase.crashlytics'
 
 android {
-    compileSdkVersion 29
+    compileSdkVersion 30
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
     defaultConfig {
         applicationId "com.ffrktoolkit.ffrktoolkithelper"
-        minSdkVersion 19
+        minSdkVersion 16
         targetSdkVersion 29
         versionCode 23
         versionName "1.1.9"
@@ -39,7 +39,8 @@ dependencies {
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
     implementation 'androidx.vectordrawable:vectordrawable:1.2.0-alpha02'
     implementation 'androidx.coordinatorlayout:coordinatorlayout:1.1.0'
-    implementation 'org.littleshoot:littleproxy:1.1.2'
+    //implementation 'org.littleshoot:littleproxy:1.1.2'
+    //implementation 'xyz.rogfam:littleproxy:2.0.5'
     implementation 'com.github.ganskef:littleproxy-mitm:1.1.0'
     //implementation 'net.lightbody.bmp:mitm:2.1.4'
     //implementation 'net.lightbody.bmp:browsermob-core:2.1.5'
